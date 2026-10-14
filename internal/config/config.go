@@ -100,6 +100,9 @@ type Config struct {
 	ZernioOrphanSweepInterval      time.Duration `envconfig:"ZERNIO_ORPHAN_SWEEP_INTERVAL" default:"1h"`
 	ZernioAnalyticsRefreshInterval time.Duration `envconfig:"ZERNIO_ANALYTICS_REFRESH_INTERVAL" default:"1h"`
 	ZernioFollowerRefreshInterval  time.Duration `envconfig:"ZERNIO_FOLLOWER_REFRESH_INTERVAL" default:"24h"`
+	// AnalysisBackfillInterval is the asset-analysis backfill's cadence; the
+	// batch size stays in ogen. Zero turns it off.
+	AnalysisBackfillInterval time.Duration `envconfig:"ANALYSIS_BACKFILL_INTERVAL" default:"15m"`
 
 	// Gemini's API (embeddings) and Firecrawl's (URL scrapes). Their keys are
 	// leased from ogen.

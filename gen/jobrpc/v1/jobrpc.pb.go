@@ -758,6 +758,7 @@ type StepResponse struct {
 	//	*StepResponse_Retry
 	//	*StepResponse_Transfer
 	//	*StepResponse_Sidecar
+	//	*StepResponse_Wait
 	Next          isStepResponse_Next `protobuf_oneof:"next"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -852,6 +853,15 @@ func (x *StepResponse) GetSidecar() *SidecarCall {
 	return nil
 }
 
+func (x *StepResponse) GetWait() *durationpb.Duration {
+	if x != nil {
+		if x, ok := x.Next.(*StepResponse_Wait); ok {
+			return x.Wait
+		}
+	}
+	return nil
+}
+
 type isStepResponse_Next interface {
 	isStepResponse_Next()
 }
@@ -882,6 +892,13 @@ type StepResponse_Sidecar struct {
 	Sidecar *SidecarCall `protobuf:"bytes,6,opt,name=sidecar,proto3,oneof"`
 }
 
+type StepResponse_Wait struct {
+	// Wait this long, then step again with the same state and no result.
+	// For work ogen runs detached (a long model call): the job keeps its
+	// place instead of ending the run as a retry would.
+	Wait *durationpb.Duration `protobuf:"bytes,7,opt,name=wait,proto3,oneof"`
+}
+
 func (*StepResponse_Http) isStepResponse_Next() {}
 
 func (*StepResponse_Done) isStepResponse_Next() {}
@@ -891,6 +908,8 @@ func (*StepResponse_Retry) isStepResponse_Next() {}
 func (*StepResponse_Transfer) isStepResponse_Next() {}
 
 func (*StepResponse_Sidecar) isStepResponse_Next() {}
+
+func (*StepResponse_Wait) isStepResponse_Next() {}
 
 // HttpCall is one HTTP request to an outside API.
 type HttpCall struct {
@@ -1677,14 +1696,15 @@ const file_jobrpc_v1_jobrpc_proto_rawDesc = "" +
 	"\x05state\x18\x03 \x01(\fR\x05state\x12-\n" +
 	"\x06result\x18\x04 \x01(\v2\x15.jobrpc.v1.StepResultR\x06result\x12\x18\n" +
 	"\aattempt\x18\x05 \x01(\x05R\aattempt\x12!\n" +
-	"\fmax_attempts\x18\x06 \x01(\x05R\vmaxAttempts\"\x9c\x02\n" +
+	"\fmax_attempts\x18\x06 \x01(\x05R\vmaxAttempts\"\xcd\x02\n" +
 	"\fStepResponse\x12\x14\n" +
 	"\x05state\x18\x01 \x01(\fR\x05state\x12)\n" +
 	"\x04http\x18\x02 \x01(\v2\x13.jobrpc.v1.HttpCallH\x00R\x04http\x12)\n" +
 	"\x04done\x18\x03 \x01(\v2\x13.jobrpc.v1.StepDoneH\x00R\x04done\x12,\n" +
 	"\x05retry\x18\x04 \x01(\v2\x14.jobrpc.v1.StepRetryH\x00R\x05retry\x126\n" +
 	"\btransfer\x18\x05 \x01(\v2\x18.jobrpc.v1.MediaTransferH\x00R\btransfer\x122\n" +
-	"\asidecar\x18\x06 \x01(\v2\x16.jobrpc.v1.SidecarCallH\x00R\asidecarB\x06\n" +
+	"\asidecar\x18\x06 \x01(\v2\x16.jobrpc.v1.SidecarCallH\x00R\asidecar\x12/\n" +
+	"\x04wait\x18\a \x01(\v2\x19.google.protobuf.DurationH\x00R\x04waitB\x06\n" +
 	"\x04next\"\x9d\x02\n" +
 	"\bHttpCall\x12\x1a\n" +
 	"\bupstream\x18\x01 \x01(\tR\bupstream\x12\x16\n" +
@@ -1820,29 +1840,30 @@ var file_jobrpc_v1_jobrpc_proto_depIdxs = []int32{
 	22, // 11: jobrpc.v1.StepResponse.retry:type_name -> jobrpc.v1.StepRetry
 	23, // 12: jobrpc.v1.StepResponse.transfer:type_name -> jobrpc.v1.MediaTransfer
 	15, // 13: jobrpc.v1.StepResponse.sidecar:type_name -> jobrpc.v1.SidecarCall
-	14, // 14: jobrpc.v1.HttpCall.query:type_name -> jobrpc.v1.QueryParam
-	25, // 15: jobrpc.v1.HttpCall.headers:type_name -> jobrpc.v1.HttpCall.HeadersEntry
-	16, // 16: jobrpc.v1.SidecarCall.stream:type_name -> jobrpc.v1.StreamSource
-	28, // 17: jobrpc.v1.SidecarCall.timeout:type_name -> google.protobuf.Duration
-	21, // 18: jobrpc.v1.StepDone.enqueue:type_name -> jobrpc.v1.ChildJob
-	19, // 19: jobrpc.v1.StepDone.cancel:type_name -> jobrpc.v1.JobMatch
-	20, // 20: jobrpc.v1.JobMatch.args:type_name -> jobrpc.v1.ArgMatch
-	28, // 21: jobrpc.v1.StepRetry.after:type_name -> google.protobuf.Duration
-	1,  // 22: jobrpc.v1.CredentialService.Lease:input_type -> jobrpc.v1.LeaseRequest
-	3,  // 23: jobrpc.v1.MaintenanceService.Run:input_type -> jobrpc.v1.RunRequest
-	5,  // 24: jobrpc.v1.EmailJobService.PrepareEmail:input_type -> jobrpc.v1.PrepareEmailRequest
-	9,  // 25: jobrpc.v1.EmailJobService.RecordEmailOutcome:input_type -> jobrpc.v1.RecordEmailOutcomeRequest
-	11, // 26: jobrpc.v1.JobStepService.Step:input_type -> jobrpc.v1.StepRequest
-	2,  // 27: jobrpc.v1.CredentialService.Lease:output_type -> jobrpc.v1.LeaseResponse
-	4,  // 28: jobrpc.v1.MaintenanceService.Run:output_type -> jobrpc.v1.RunResponse
-	6,  // 29: jobrpc.v1.EmailJobService.PrepareEmail:output_type -> jobrpc.v1.PrepareEmailResponse
-	10, // 30: jobrpc.v1.EmailJobService.RecordEmailOutcome:output_type -> jobrpc.v1.RecordEmailOutcomeResponse
-	12, // 31: jobrpc.v1.JobStepService.Step:output_type -> jobrpc.v1.StepResponse
-	27, // [27:32] is the sub-list for method output_type
-	22, // [22:27] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	28, // 14: jobrpc.v1.StepResponse.wait:type_name -> google.protobuf.Duration
+	14, // 15: jobrpc.v1.HttpCall.query:type_name -> jobrpc.v1.QueryParam
+	25, // 16: jobrpc.v1.HttpCall.headers:type_name -> jobrpc.v1.HttpCall.HeadersEntry
+	16, // 17: jobrpc.v1.SidecarCall.stream:type_name -> jobrpc.v1.StreamSource
+	28, // 18: jobrpc.v1.SidecarCall.timeout:type_name -> google.protobuf.Duration
+	21, // 19: jobrpc.v1.StepDone.enqueue:type_name -> jobrpc.v1.ChildJob
+	19, // 20: jobrpc.v1.StepDone.cancel:type_name -> jobrpc.v1.JobMatch
+	20, // 21: jobrpc.v1.JobMatch.args:type_name -> jobrpc.v1.ArgMatch
+	28, // 22: jobrpc.v1.StepRetry.after:type_name -> google.protobuf.Duration
+	1,  // 23: jobrpc.v1.CredentialService.Lease:input_type -> jobrpc.v1.LeaseRequest
+	3,  // 24: jobrpc.v1.MaintenanceService.Run:input_type -> jobrpc.v1.RunRequest
+	5,  // 25: jobrpc.v1.EmailJobService.PrepareEmail:input_type -> jobrpc.v1.PrepareEmailRequest
+	9,  // 26: jobrpc.v1.EmailJobService.RecordEmailOutcome:input_type -> jobrpc.v1.RecordEmailOutcomeRequest
+	11, // 27: jobrpc.v1.JobStepService.Step:input_type -> jobrpc.v1.StepRequest
+	2,  // 28: jobrpc.v1.CredentialService.Lease:output_type -> jobrpc.v1.LeaseResponse
+	4,  // 29: jobrpc.v1.MaintenanceService.Run:output_type -> jobrpc.v1.RunResponse
+	6,  // 30: jobrpc.v1.EmailJobService.PrepareEmail:output_type -> jobrpc.v1.PrepareEmailResponse
+	10, // 31: jobrpc.v1.EmailJobService.RecordEmailOutcome:output_type -> jobrpc.v1.RecordEmailOutcomeResponse
+	12, // 32: jobrpc.v1.JobStepService.Step:output_type -> jobrpc.v1.StepResponse
+	28, // [28:33] is the sub-list for method output_type
+	23, // [23:28] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_jobrpc_v1_jobrpc_proto_init() }
@@ -1860,6 +1881,7 @@ func file_jobrpc_v1_jobrpc_proto_init() {
 		(*StepResponse_Retry)(nil),
 		(*StepResponse_Transfer)(nil),
 		(*StepResponse_Sidecar)(nil),
+		(*StepResponse_Wait)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
