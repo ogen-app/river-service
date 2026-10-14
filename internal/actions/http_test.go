@@ -79,13 +79,16 @@ func TestFetchRefusesInternalAddresses(t *testing.T) {
 	if res := executor("http://unused", keys{}).HTTP(t.Context(), &jobrpcv1.HttpCall{Url: "file:///etc/passwd"}); res.GetError() == "" {
 		t.Errorf("non-http URL = %v, want refused", res)
 	}
-	for _, ip := range []string{"127.0.0.1", "10.0.0.5", "100.64.1.1", "169.254.169.254", "::1", "fd00:ec2::254", "192.168.1.1"} {
+	// The same ranges ogen's netguard blocks.
+	for _, ip := range []string{"127.0.0.1", "10.0.0.5", "100.64.1.1", "100.127.255.254", "::ffff:100.100.1.1", "169.254.169.254", "::1", "fd00:ec2::254", "192.168.1.1", "0.0.0.0", "224.0.0.1"} {
 		if !blocked(net.ParseIP(ip)) {
 			t.Errorf("%s not blocked", ip)
 		}
 	}
-	if blocked(net.ParseIP("93.184.216.34")) {
-		t.Error("a public address is blocked")
+	for _, ip := range []string{"93.184.216.34", "100.63.255.255", "100.128.0.1"} {
+		if blocked(net.ParseIP(ip)) {
+			t.Errorf("public address %s is blocked", ip)
+		}
 	}
 }
 
