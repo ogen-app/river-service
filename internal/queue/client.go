@@ -55,7 +55,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, schema string) error {
 		return fmt.Errorf("migrate: begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
-	if _, err := migrator.MigrateTx(ctx, tx, rivermigrate.DirectionUp, nil); err != nil {
+	if _, err := migrator.MigrateTx(ctx, tx, rivermigrate.DirectionUp, nil); err != nil { //nolint:staticcheck // must run on the locked connection; River ships no migration that needs its own transaction yet
 		return fmt.Errorf("migrate: river: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS `+EnqueueKeysTable(schema)+` (
