@@ -71,6 +71,17 @@ type Config struct {
 	// RIVER_SERVICE_AUTH_TOKEN). Required when GRPCAddr is set.
 	GRPCAuthToken string `envconfig:"GRPC_AUTH_TOKEN"`
 
+	// OgenGRPCAddr is ogen's job-RPC listener, e.g.
+	// dns:///ogen.railway.internal:9093. Jobs read and write ogen data only
+	// through it. OgenRPCAuthToken is the bearer token it expects (ogen's
+	// RIVER_RPC_AUTH_TOKEN). Required once any job kind is registered.
+	OgenGRPCAddr     string `envconfig:"OGEN_GRPC_ADDR"`
+	OgenRPCAuthToken string `envconfig:"OGEN_RPC_AUTH_TOKEN"`
+
+	// Housekeeping sweep cadences, as ogen had them. Zero turns a sweep off.
+	NotificationsCleanupEvery  time.Duration `envconfig:"NOTIFICATIONS_CLEANUP_EVERY" default:"24h"`
+	PendingUploadSweepInterval time.Duration `envconfig:"PENDING_UPLOAD_SWEEP_INTERVAL" default:"1h"`
+
 	// HealthAddr serves the HTTP liveness and readiness checks Railway probes.
 	HealthAddr string `envconfig:"HEALTH_ADDR" default:":8080"`
 
@@ -121,6 +132,9 @@ func (c *Config) validate() error {
 	}
 	if c.ShutdownTimeout <= minCancelMargin {
 		errs = append(errs, fmt.Errorf("SHUTDOWN_TIMEOUT must exceed %s", minCancelMargin))
+	}
+	if c.OgenGRPCAddr != "" && c.OgenRPCAuthToken == "" {
+		errs = append(errs, errors.New("OGEN_RPC_AUTH_TOKEN is required when OGEN_GRPC_ADDR is set"))
 	}
 	if c.RiverSchema == "" {
 		errs = append(errs, errors.New("RIVER_SCHEMA must not be empty"))

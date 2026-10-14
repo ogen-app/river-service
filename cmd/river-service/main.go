@@ -34,6 +34,7 @@ import (
 	"github.com/ogen-app/river-service/internal/jobs"
 	"github.com/ogen-app/river-service/internal/jobservice"
 	"github.com/ogen-app/river-service/internal/logging"
+	"github.com/ogen-app/river-service/internal/ogenrpc"
 	"github.com/ogen-app/river-service/internal/queue"
 	"github.com/ogen-app/river-service/internal/telemetry"
 )
@@ -87,7 +88,17 @@ func run(cfg *config.Config, logger *slog.Logger) error {
 		return err
 	}
 
-	reg := jobs.Registry()
+	var ogen *ogenrpc.Client
+	if cfg.OgenGRPCAddr != "" {
+		if ogen, err = ogenrpc.New(cfg.OgenGRPCAddr, cfg.OgenRPCAuthToken); err != nil {
+			return err
+		}
+		defer func() { _ = ogen.Close() }()
+	} else {
+		logger.Warn("OGEN_GRPC_ADDR is not set; no job kinds can run", logging.AttrComponent, "boot")
+	}
+
+	reg := jobs.Registry(cfg, ogen)
 	client, err := queue.NewClient(pool, cfg, reg, logger)
 	if err != nil {
 		return fmt.Errorf("river client: %w", err)
