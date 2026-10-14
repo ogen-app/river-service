@@ -305,3 +305,18 @@ func TestPublishingKindsRegister(t *testing.T) {
 		t.Errorf("registered %d kinds, want 5", reg.Len())
 	}
 }
+
+func TestPublishingSweepsRegister(t *testing.T) {
+	reg := queue.NewRegistry()
+	cfg := &config.Config{ReconcileEvery: time.Minute, ZernioOrphanSweepInterval: time.Hour}
+	d := stepDeps{ogen: &scriptedSteps{}, actions: &recordingActions{}, children: newChildKinds()}
+	registerPublishingSweeps(reg, cfg, d, &fakeMaintenance{})
+	if reg.Len() != 8 || len(reg.PeriodicJobs()) != 2 {
+		t.Errorf("kinds %d, periodic %d; want 8 and 2 (zero cadences are off)", reg.Len(), len(reg.PeriodicJobs()))
+	}
+	for _, kind := range []string{"sweep_zernio_orphans_profile", "refresh_zernio_analytics_tenant", "refresh_zernio_followers_tenant"} {
+		if _, err := d.children.args(kind, []byte(`{"tenant_id":"t1"}`)); err != nil {
+			t.Errorf("child %s: %v", kind, err)
+		}
+	}
+}

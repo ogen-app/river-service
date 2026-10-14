@@ -94,6 +94,12 @@ type Config struct {
 	// ZernioHealthCheckInterval is the connection-health sweep's cadence; 0
 	// turns it off.
 	ZernioHealthCheckInterval time.Duration `envconfig:"ZERNIO_HEALTH_CHECK_INTERVAL" default:"6h"`
+	// Publishing sweep cadences, as ogen had them. Zero turns a sweep off.
+	ReconcileEvery                 time.Duration `envconfig:"RECONCILE_EVERY" default:"5m"`
+	ManualPublishDueSweepEvery     time.Duration `envconfig:"MANUAL_PUBLISH_DUE_SWEEP_EVERY" default:"1h"`
+	ZernioOrphanSweepInterval      time.Duration `envconfig:"ZERNIO_ORPHAN_SWEEP_INTERVAL" default:"1h"`
+	ZernioAnalyticsRefreshInterval time.Duration `envconfig:"ZERNIO_ANALYTICS_REFRESH_INTERVAL" default:"1h"`
+	ZernioFollowerRefreshInterval  time.Duration `envconfig:"ZERNIO_FOLLOWER_REFRESH_INTERVAL" default:"24h"`
 
 	// Gemini's API (embeddings) and Firecrawl's (URL scrapes). Their keys are
 	// leased from ogen.
