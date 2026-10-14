@@ -42,7 +42,27 @@ func (ProcessDocumentArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{Queue: config.QueueIngest, MaxAttempts: 5}
 }
 
+// urlTimeout bounds one attempt of a URL ingest: the scrape, the page's
+// images and the embeds.
+const urlTimeout = 10 * time.Minute
+
+// ProcessUrlArgs scrapes, mirrors and embeds a web page.
+type ProcessUrlArgs struct {
+	AssetID   string `json:"asset_id"`
+	TenantID  string `json:"tenant_id"`
+	SourceURL string `json:"source_url"`
+	Refresh   bool   `json:"refresh"`
+}
+
+func (ProcessUrlArgs) Kind() string { return "process_url" }
+func (ProcessUrlArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{Queue: config.QueueIngest, MaxAttempts: 5}
+}
+
 func registerIngestion(reg *queue.Registry, d stepDeps) {
+	queue.Register(reg, newStepWorker[ProcessUrlArgs](d, urlTimeout), func(m *jobsv1.ProcessUrlArgs) ProcessUrlArgs {
+		return ProcessUrlArgs{AssetID: m.GetAssetId(), TenantID: m.GetTenantId(), SourceURL: m.GetSourceUrl(), Refresh: m.GetRefresh()}
+	})
 	queue.Register(reg, newStepWorker[ProcessPdfArgs](d, parseTimeout), func(m *jobsv1.ProcessPdfArgs) ProcessPdfArgs {
 		return ProcessPdfArgs{AssetID: m.GetAssetId(), TenantID: m.GetTenantId(), OriginalName: m.GetOriginalName(), MimeType: m.GetMimeType()}
 	})

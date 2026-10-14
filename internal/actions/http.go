@@ -216,5 +216,5 @@ func result(resp *http.Response, err error) *jobrpcv1.StepResult {
 	if err != nil {
 		return &jobrpcv1.StepResult{Status: int32(resp.StatusCode), Error: "read response: " + err.Error()}
 	}
-	return &jobrpcv1.StepResult{Status: int32(resp.StatusCode), Body: b}
+	return &jobrpcv1.StepResult{Status: int32(resp.StatusCode), Body: b, ContentType: resp.Header.Get("Content-Type")}
 }
