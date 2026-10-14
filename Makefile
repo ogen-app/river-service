@@ -29,7 +29,8 @@ test-db:
 		docker rm -f -v $(TEST_PG_CONTAINER) >/dev/null 2>&1; exit $$EXIT
 
 lint:
-	gofmt -l $$(git ls-files '*.go' | grep -v '^gen/')
+	@out="$$(gofmt -l $$(git ls-files '*.go' | grep -v '^gen/'))"; \
+		if [ -n "$$out" ]; then echo "needs gofmt:"; echo "$$out"; exit 1; fi
 	go vet ./...
 
 proto:

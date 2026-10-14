@@ -47,6 +47,9 @@ const (
 	maxConnectionAge = 5 * time.Minute
 	// telemetryFlush bounds the final span and error flush.
 	telemetryFlush = 5 * time.Second
+	// startupPingTimeout bounds the boot-time database check, so an
+	// unreachable database fails the start instead of hanging it.
+	startupPingTimeout = 15 * time.Second
 )
 
 func main() {
@@ -151,7 +154,9 @@ func newPool(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect to database: %w", err)
 	}
-	if err := pool.Ping(ctx); err != nil {
+	pingCtx, cancel := context.WithTimeout(ctx, startupPingTimeout)
+	defer cancel()
+	if err := pool.Ping(pingCtx); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
 	}

@@ -4,6 +4,7 @@
 package config
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
@@ -87,13 +88,14 @@ type Config struct {
 	EmailBaseURL     string        `envconfig:"EMAIL_BASE_URL" default:"https://api.resend.com"`
 	EmailHTTPTimeout time.Duration `envconfig:"EMAIL_HTTP_TIMEOUT" default:"15s"`
 
-	// Harbor's new-tenant webhook and its HMAC signing key. An empty URL turns
-	// the notification off; an empty secret sends it unsigned.
-	HarborWebhookURL    string `envconfig:"HARBOR_WEBHOOK_URL"`
-	HarborWebhookSecret string `envconfig:"HARBOR_WEBHOOK_SECRET"`
+	// Harbor's new-tenant webhook. An empty URL turns the notification off. Its
+	// signing key is leased from ogen (harbor_webhook_secret).
+	HarborWebhookURL string `envconfig:"HARBOR_WEBHOOK_URL"`
 
 	// HealthAddr serves the HTTP liveness and readiness checks Railway probes.
-	HealthAddr string `envconfig:"HEALTH_ADDR" default:":8080"`
+	// Unset, it follows PORT (where Railway sends healthchecks), else :8080.
+	HealthAddr string `envconfig:"HEALTH_ADDR"`
+	Port       string `envconfig:"PORT"`
 
 	LogLevel  string `envconfig:"LOG_LEVEL" default:"info"`
 	LogFormat string `envconfig:"LOG_FORMAT" default:"json"`
@@ -113,6 +115,9 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	cfg.RiverQueues = normalizeQueues(cfg.RiverQueues)
+	if cfg.HealthAddr == "" {
+		cfg.HealthAddr = ":" + cmp.Or(strings.TrimSpace(cfg.Port), "8080")
+	}
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}

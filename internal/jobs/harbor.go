@@ -33,17 +33,20 @@ func (NotifyHarborTenantRegisteredArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{MaxAttempts: 5, UniqueOpts: river.UniqueOpts{ByArgs: true}}
 }
 
-// harborWorker posts the signed tenant.registered webhook to Harbor. It needs
-// nothing from ogen: the payload is the tenant id.
+// harborWebhookKey is the lease name of the webhook signing key ogen holds.
+const harborWebhookKey = "harbor_webhook_secret"
+
+// harborWorker posts the signed tenant.registered webhook to Harbor. The
+// payload is just the tenant id; the signing key is leased from ogen.
 type harborWorker struct {
 	river.WorkerDefaults[NotifyHarborTenantRegisteredArgs]
-	url    string
-	secret string
-	http   *http.Client
+	url  string
+	keys Keys
+	http *http.Client
 }
 
-func newHarborWorker(url, secret string) *harborWorker {
-	return &harborWorker{url: url, secret: secret, http: &http.Client{
+func newHarborWorker(url string, keys Keys) *harborWorker {
+	return &harborWorker{url: url, keys: keys, http: &http.Client{
 		Timeout:       harborTimeout,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}}
@@ -72,8 +75,13 @@ func (w *harborWorker) Work(ctx context.Context, job *river.Job[NotifyHarborTena
 		return nil
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if w.secret != "" {
-		mac := hmac.New(sha256.New, []byte(w.secret))
+	secret, err := w.keys.Get(ctx, harborWebhookKey)
+	if err != nil {
+		return retryLater(err)
+	}
+	// No key set in ogen sends the webhook unsigned, as ogen always has.
+	if secret != "" {
+		mac := hmac.New(sha256.New, []byte(secret))
 		_, _ = mac.Write(body)
 		req.Header.Set("X-Ogen-Signature", "sha256="+hex.EncodeToString(mac.Sum(nil)))
 	}
@@ -95,8 +103,8 @@ func (w *harborWorker) Work(ctx context.Context, job *river.Job[NotifyHarborTena
 	}
 }
 
-func registerHarbor(reg *queue.Registry, url, secret string) {
-	queue.Register(reg, newHarborWorker(url, secret), func(m *jobsv1.NotifyHarborTenantRegisteredArgs) NotifyHarborTenantRegisteredArgs {
+func registerHarbor(reg *queue.Registry, url string, keys Keys) {
+	queue.Register(reg, newHarborWorker(url, keys), func(m *jobsv1.NotifyHarborTenantRegisteredArgs) NotifyHarborTenantRegisteredArgs {
 		return NotifyHarborTenantRegisteredArgs{TenantID: m.GetTenantId()}
 	})
 }

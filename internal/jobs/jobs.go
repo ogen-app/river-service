@@ -23,8 +23,8 @@ func Registry(cfg *config.Config, ogen *ogenrpc.Client) *queue.Registry {
 		return reg
 	}
 	registerHousekeeping(reg, cfg, ogen.Maintenance)
-	registerEmail(reg, ogen.Email, ogen.Maintenance, credentials.NewCache(ogen.Credentials),
-		resend.New(cfg.EmailBaseURL, cfg.EmailHTTPTimeout))
-	registerHarbor(reg, cfg.HarborWebhookURL, cfg.HarborWebhookSecret)
+	keys := credentials.NewCache(ogen.Credentials)
+	registerEmail(reg, ogen.Email, ogen.Maintenance, keys, resend.New(cfg.EmailBaseURL, cfg.EmailHTTPTimeout))
+	registerHarbor(reg, cfg.HarborWebhookURL, keys)
 	return reg
 }

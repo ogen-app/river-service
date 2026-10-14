@@ -24,7 +24,7 @@ func TestLoadDefaults(t *testing.T) {
 	if got := cfg.EffectiveSoftStop(); got != 240*time.Second {
 		t.Errorf("EffectiveSoftStop() = %v, want 240s", got)
 	}
-	if cfg.RiverSchema != "river_service" || cfg.GRPCAddr != ":9092" {
+	if cfg.RiverSchema != "river_service" || cfg.GRPCAddr != ":9092" || cfg.HealthAddr != ":8080" {
 		t.Errorf("schema %q, grpc %q", cfg.RiverSchema, cfg.GRPCAddr)
 	}
 }
@@ -72,5 +72,21 @@ func TestEffectiveSoftStopClamps(t *testing.T) {
 	cfg := Config{SoftStopTimeout: 10 * time.Minute, ShutdownTimeout: 270 * time.Second}
 	if got := cfg.EffectiveSoftStop(); got != 255*time.Second {
 		t.Errorf("EffectiveSoftStop() = %v, want 255s", got)
+	}
+}
+
+func TestHealthAddrFollowsPort(t *testing.T) {
+	setRequired(t)
+	t.Setenv("PORT", "3000")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.HealthAddr != ":3000" {
+		t.Errorf("HealthAddr = %q, want :3000 from PORT", cfg.HealthAddr)
+	}
+	t.Setenv("HEALTH_ADDR", ":9999")
+	if cfg, _ := Load(); cfg.HealthAddr != ":9999" {
+		t.Errorf("HealthAddr = %q, want the explicit :9999", cfg.HealthAddr)
 	}
 }

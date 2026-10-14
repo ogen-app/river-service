@@ -29,7 +29,7 @@ is refused by `Enqueue` with `UNIMPLEMENTED`, and ogen keeps it in its outbox.
 | --- | --- | --- |
 | Housekeeping | `cleanup_post_logs`, `cleanup_notifications`, `cleanup_login_security`, `cleanup_plugin_pairings`, `sweep_pending_uploads` | Scheduled here; each pass runs in ogen via `MaintenanceService.Run` |
 | Email | `send_email`, `cleanup_email_logs` | ogen prepares and renders (`EmailJobService.PrepareEmail`), river-service sends through Resend with a leased key, ogen records the outcome (`RecordEmailOutcome`). The log sweep runs in ogen. |
-| Harbor webhook | `notify_harbor_tenant_registered` | Runs here; the signed payload is just the tenant id |
+| Harbor webhook | `notify_harbor_tenant_registered` | Runs here; the payload is just the tenant id, signed with a key leased from ogen |
 
 ogen keeps scheduling a sweep until it is listed in ogen's `OUTBOX_RELAY_KINDS`,
 so deploy river-service first, then list the family there.
@@ -71,8 +71,8 @@ so deploy river-service first, then list the family there.
 | `OGEN_GRPC_ADDR` / `OGEN_RPC_AUTH_TOKEN` | empty | ogen's job-RPC listener (e.g. `dns:///ogen.railway.internal:9093`) and the token it expects (ogen's `RIVER_RPC_AUTH_TOKEN`). Without it no job kinds are registered. |
 | `NOTIFICATIONS_CLEANUP_EVERY` / `PENDING_UPLOAD_SWEEP_INTERVAL` | `24h` / `1h` | Cadence of those two sweeps; `0` turns one off. Post logs run hourly, login security daily and plugin pairings every 15 minutes. |
 | `EMAIL_BASE_URL` / `EMAIL_HTTP_TIMEOUT` | `https://api.resend.com` / `15s` | Resend endpoint and per-call timeout. The API key is leased from ogen; with no key set in ogen, sends are logged as skipped. |
-| `HARBOR_WEBHOOK_URL` / `HARBOR_WEBHOOK_SECRET` | empty | Harbor's new-tenant webhook and its HMAC key (`X-Ogen-Signature`). Empty URL turns it off. |
-| `HEALTH_ADDR` | `:8080` | HTTP `/healthz` (process up) and `/readyz` (serving and database reachable) |
+| `HARBOR_WEBHOOK_URL` | empty | Harbor's new-tenant webhook. Empty turns it off. The HMAC key (`X-Ogen-Signature`) is leased from ogen's `HARBOR_WEBHOOK_SECRET`; with none set the webhook goes out unsigned. |
+| `HEALTH_ADDR` | `:$PORT`, else `:8080` | HTTP `/healthz` (process up) and `/readyz` (serving and database reachable). Unset, it follows `PORT`, which is where Railway sends healthchecks. |
 | `LOG_LEVEL` / `LOG_FORMAT` | `info` / `json` | Logging; `LOG_FORMAT=text` for local runs |
 | `SENTRY_DSN` | empty | Turns on tracing and error reporting. Also `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE` (`0.1`), `OTEL_SERVICE_NAME` (`river-service`). |
 
@@ -97,9 +97,11 @@ is leader.
 - `RAILWAY_DEPLOYMENT_DRAINING_SECONDS=300`. Railway sends SIGTERM once the new
   deployment is up and SIGKILL after this many seconds (default 0, which kills
   running jobs). It must exceed `SHUTDOWN_TIMEOUT`.
-- `RAILWAY_DEPLOYMENT_OVERLAP_SECONDS≈30`, so the new replica is serving
-  before the old one drains.
-- Healthcheck path `/readyz` on `HEALTH_ADDR`; restart policy on failure.
+- `RAILWAY_DEPLOYMENT_OVERLAP_SECONDS=30` (about 30 seconds is enough), so
+  the new replica is serving before the old one drains.
+- Healthcheck path `/readyz`. Railway probes the port in `PORT`, and the
+  health listener uses `PORT` when `HEALTH_ADDR` is unset, so leave
+  `HEALTH_ADDR` unset on Railway. Restart policy: on failure.
 
 **Postgres.** Create the role and schema once, as a superuser on ogen's
 database:

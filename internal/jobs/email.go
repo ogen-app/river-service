@@ -119,6 +119,11 @@ func (w *sendEmailWorker) Work(ctx context.Context, job *river.Job[SendEmailArgs
 		return w.record(ctx, args, jobrpcv1.EmailOutcome_EMAIL_OUTCOME_FAILED, msg, "", sendErr.Error())
 	}
 	if err != nil {
+		if job.Attempt >= job.MaxAttempts {
+			// Out of retries: record the failure so the send never ends
+			// without an outcome in ogen.
+			return w.record(ctx, args, jobrpcv1.EmailOutcome_EMAIL_OUTCOME_FAILED, msg, "", err.Error())
+		}
 		return err // transient: River retries, and the idempotency key stops a double send
 	}
 	return w.record(ctx, args, jobrpcv1.EmailOutcome_EMAIL_OUTCOME_SENT, msg, id, "")
