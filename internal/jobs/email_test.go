@@ -61,7 +61,7 @@ func toSend() *jobrpcv1.PrepareEmailResponse {
 }
 
 func emailJob() *river.Job[SendEmailArgs] {
-	return &river.Job[SendEmailArgs]{JobRow: &rivertype.JobRow{Kind: "send_email"}, Args: SendEmailArgs{
+	return &river.Job[SendEmailArgs]{JobRow: &rivertype.JobRow{Kind: "send_email", Attempt: 1, MaxAttempts: 5}, Args: SendEmailArgs{
 		UserID: "u1", TenantID: "t1", TemplateKey: "welcome", EmailKind: "transactional", IdempotencyKey: "welcome:u1",
 	}}
 }
@@ -139,7 +139,7 @@ func TestHarborWorker(t *testing.T) {
 	t.Cleanup(srv.Close)
 	job := &river.Job[NotifyHarborTenantRegisteredArgs]{JobRow: &rivertype.JobRow{}, Args: NotifyHarborTenantRegisteredArgs{TenantID: "t1"}}
 
-	w := newHarborWorker(srv.URL, "s3cret")
+	w := newHarborWorker(srv.URL, fakeKeys{key: "s3cret"})
 	if err := w.Work(t.Context(), job); err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,26 @@ func TestHarborWorker(t *testing.T) {
 	if err := w.Work(t.Context(), job); err != nil {
 		t.Errorf("4xx: %v, want a final nil", err)
 	}
-	if err := newHarborWorker("", "").Work(t.Context(), job); err != nil {
+	if err := newHarborWorker("", fakeKeys{}).Work(t.Context(), job); err != nil {
 		t.Errorf("no url: %v, want a no-op", err)
+	}
+	status = http.StatusOK
+	if err := newHarborWorker(srv.URL, fakeKeys{}).Work(t.Context(), job); err != nil || gotSig != "" {
+		t.Errorf("no key set in ogen: %v, signature %q; want an unsigned delivery", err, gotSig)
+	}
+}
+
+// TestSendEmailLastAttemptRecordsTheFailure checks that a send Resend keeps
+// refusing transiently ends with a failed outcome in ogen, not with no record.
+func TestSendEmailLastAttemptRecordsTheFailure(t *testing.T) {
+	ogen := &fakeEmailJobs{prepare: toSend()}
+	w := &sendEmailWorker{ogen: ogen, keys: fakeKeys{key: "re_1"}, mailer: &fakeMailer{err: &resend.Error{Status: 503, Transient: true, Message: "down"}}}
+	job := emailJob()
+	job.Attempt = job.MaxAttempts
+	if err := w.Work(t.Context(), job); err != nil {
+		t.Fatalf("Work() = %v, want nil once the failure is recorded", err)
+	}
+	if len(ogen.recorded) != 1 || ogen.recorded[0].GetOutcome() != jobrpcv1.EmailOutcome_EMAIL_OUTCOME_FAILED || ogen.recorded[0].GetError() == "" {
+		t.Fatalf("recorded %v, want one failed outcome with the error", ogen.recorded)
 	}
 }
