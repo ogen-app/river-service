@@ -34,6 +34,7 @@ func TestHTTPToANamedUpstream(t *testing.T) {
 		got = r
 		b, _ := io.ReadAll(r.Body)
 		body = string(b)
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		_, _ = w.Write([]byte(`{"ok":1}`))
 	}))
@@ -44,7 +45,7 @@ func TestHTTPToANamedUpstream(t *testing.T) {
 		Query:   []*jobrpcv1.QueryParam{{Key: "profileId", Value: "p1"}},
 		Headers: map[string]string{"X-Connect-Token": "ct"},
 	})
-	if res.GetStatus() != 201 || string(res.GetBody()) != `{"ok":1}` || res.GetError() != "" {
+	if res.GetStatus() != 201 || string(res.GetBody()) != `{"ok":1}` || res.GetError() != "" || res.GetContentType() != "application/json" {
 		t.Fatalf("result = %v", res)
 	}
 	if got.URL.Path != "/api/v1/profiles" || got.URL.Query().Get("profileId") != "p1" || got.Header.Get("Authorization") != "Bearer zk" ||

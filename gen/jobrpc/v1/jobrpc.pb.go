@@ -1206,8 +1206,10 @@ type StepResult struct {
 	Error string `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
 	// The upstream's key is not set in ogen, so the call was not made.
 	CredentialMissing bool `protobuf:"varint,4,opt,name=credential_missing,json=credentialMissing,proto3" json:"credential_missing,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// The response's Content-Type, for an HTTP call or transfer.
+	ContentType   string `protobuf:"bytes,5,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StepResult) Reset() {
@@ -1266,6 +1268,13 @@ func (x *StepResult) GetCredentialMissing() bool {
 		return x.CredentialMissing
 	}
 	return false
+}
+
+func (x *StepResult) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
 }
 
 type StepDone struct {
@@ -1703,13 +1712,14 @@ const file_jobrpc_v1_jobrpc_proto_rawDesc = "" +
 	"source_url\x18\x01 \x01(\tR\tsourceUrl\x12\x16\n" +
 	"\x06header\x18\x02 \x01(\fR\x06header\x12\x1f\n" +
 	"\vchunk_field\x18\x03 \x01(\x05R\n" +
-	"chunkField\"}\n" +
+	"chunkField\"\xa0\x01\n" +
 	"\n" +
 	"StepResult\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\x05R\x06status\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\fR\x04body\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12-\n" +
-	"\x12credential_missing\x18\x04 \x01(\bR\x11credentialMissing\"\x80\x01\n" +
+	"\x12credential_missing\x18\x04 \x01(\bR\x11credentialMissing\x12!\n" +
+	"\fcontent_type\x18\x05 \x01(\tR\vcontentType\"\x80\x01\n" +
 	"\bStepDone\x12\x18\n" +
 	"\aoutcome\x18\x01 \x01(\tR\aoutcome\x12-\n" +
 	"\aenqueue\x18\x02 \x03(\v2\x13.jobrpc.v1.ChildJobR\aenqueue\x12+\n" +
