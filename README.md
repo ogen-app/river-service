@@ -21,11 +21,16 @@ design is in Linear CON-332; the deployment configuration is CON-377.
 
 ## Status
 
-This is the walking skeleton (CON-332 phase 2.1). It migrates its schema,
-serves `JobService`, drains on shutdown and traces jobs, but **no job kinds are
-registered yet**: `Enqueue` answers `UNIMPLEMENTED` for every kind, and ogen keeps
-those jobs in its outbox. Job families move over one at a time (phases 3–6) by
-registering their kinds in `internal/jobs`.
+Job families move over from ogen one at a time (CON-332 phases 3–6) by
+registering their kinds in `internal/jobs`. A kind this build does not register
+is refused by `Enqueue` with `UNIMPLEMENTED`, and ogen keeps it in its outbox.
+
+| Family | Kinds | State |
+| --- | --- | --- |
+| Housekeeping | `cleanup_post_logs`, `cleanup_notifications`, `cleanup_login_security`, `cleanup_plugin_pairings`, `sweep_pending_uploads` | Scheduled here; each pass runs in ogen via `MaintenanceService.Run` |
+
+ogen keeps scheduling a sweep until it is listed in ogen's `OUTBOX_RELAY_KINDS`,
+so deploy river-service first, then list the family there.
 
 ## How it works
 
@@ -61,6 +66,8 @@ registering their kinds in `internal/jobs`.
 | `RESCUE_STUCK_JOBS_AFTER` | `30m` | When a job left running by a dead replica is retried. Must exceed the longest attempt timeout. |
 | `GRPC_ADDR` | `:9092` | Where `JobService` listens. Empty disables it (heavy service). |
 | `GRPC_AUTH_TOKEN` | required with `GRPC_ADDR` | Bearer token ogen sends (ogen's `RIVER_SERVICE_AUTH_TOKEN`) |
+| `OGEN_GRPC_ADDR` / `OGEN_RPC_AUTH_TOKEN` | empty | ogen's job-RPC listener (e.g. `dns:///ogen.railway.internal:9093`) and the token it expects (ogen's `RIVER_RPC_AUTH_TOKEN`). Without it no job kinds are registered. |
+| `NOTIFICATIONS_CLEANUP_EVERY` / `PENDING_UPLOAD_SWEEP_INTERVAL` | `24h` / `1h` | Cadence of those two sweeps; `0` turns one off. Post logs run hourly, login security daily and plugin pairings every 15 minutes. |
 | `HEALTH_ADDR` | `:8080` | HTTP `/healthz` (process up) and `/readyz` (serving and database reachable) |
 | `LOG_LEVEL` / `LOG_FORMAT` | `info` / `json` | Logging; `LOG_FORMAT=text` for local runs |
 | `SENTRY_DSN` | empty | Turns on tracing and error reporting. Also `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE` (`0.1`), `OTEL_SERVICE_NAME` (`river-service`). |
@@ -103,8 +110,9 @@ Grant the role nothing on ogen's schema. The service creates its tables inside
 
 **Private network.** ogen reaches `JobService` at
 `dns:///river-service.railway.internal:9092` (ogen's `RIVER_SERVICE_ADDR`), and
-river-service will reach ogen's job RPCs at
-`dns:///ogen.railway.internal:9091`. Define each token once as a Railway shared
+river-service reaches ogen's job RPCs at
+`dns:///ogen.railway.internal:9093` (river-service's `OGEN_GRPC_ADDR`, ogen's
+`JOB_RPC_ADDR`). Define each token once as a Railway shared
 variable and reference it from both services.
 
 **Scaling.** Change the replica count. Watch queue depth and the age of the

@@ -4,7 +4,7 @@
 # published, generate from a local checkout:
 #   make proto PROTO_SOURCE=../proto/proto
 PROTO_MODULE  = buf.build/ogen-app/proto
-PROTO_VERSION = v1.13.0
+PROTO_VERSION = v1.14.0
 PROTO_SOURCE ?= $(PROTO_MODULE):$(PROTO_VERSION)
 
 TEST_PG_CONTAINER = river-service-test-pg
@@ -33,7 +33,7 @@ lint:
 	go vet ./...
 
 proto:
-	buf generate $(PROTO_SOURCE) --path jobs/v1/jobs.proto
+	buf generate $(PROTO_SOURCE) --path jobs/v1/jobs.proto --path jobrpc/v1/jobrpc.proto
 
 tidy:
 	go mod tidy

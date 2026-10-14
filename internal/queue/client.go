@@ -82,6 +82,7 @@ func NewClient(pool *pgxpool.Pool, cfg *config.Config, reg *Registry, logger *sl
 	}
 	if reg.Len() > 0 && len(cfg.RiverQueues) > 0 {
 		rc.Workers = reg.Workers()
+		rc.PeriodicJobs = reg.PeriodicJobs()
 		rc.Queues = map[string]river.QueueConfig{}
 		for q, n := range cfg.QueueWorkers() {
 			rc.Queues[q] = river.QueueConfig{MaxWorkers: n}
