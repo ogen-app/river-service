@@ -665,7 +665,11 @@ type StepRequest struct {
 	// The state ogen returned from the previous step; empty on the first.
 	State []byte `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
 	// The result of the action ogen asked for last; unset on the first step.
-	Result        *StepResult `protobuf:"bytes,4,opt,name=result,proto3" json:"result,omitempty"`
+	Result *StepResult `protobuf:"bytes,4,opt,name=result,proto3" json:"result,omitempty"`
+	// This run's attempt, from 1, and the most the job gets. On the last
+	// attempt ogen settles a transient failure instead of asking for a retry.
+	Attempt       int32 `protobuf:"varint,5,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	MaxAttempts   int32 `protobuf:"varint,6,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -726,6 +730,20 @@ func (x *StepRequest) GetResult() *StepResult {
 		return x.Result
 	}
 	return nil
+}
+
+func (x *StepRequest) GetAttempt() int32 {
+	if x != nil {
+		return x.Attempt
+	}
+	return 0
+}
+
+func (x *StepRequest) GetMaxAttempts() int32 {
+	if x != nil {
+		return x.MaxAttempts
+	}
+	return 0
 }
 
 type StepResponse struct {
@@ -1254,7 +1272,10 @@ type StepDone struct {
 	// A short label for logs, e.g. "bootstrapped", "skipped_inactive".
 	Outcome string `protobuf:"bytes,1,opt,name=outcome,proto3" json:"outcome,omitempty"`
 	// Jobs river-service should enqueue, e.g. one per tenant for a sweep.
-	Enqueue       []*ChildJob `protobuf:"bytes,2,rep,name=enqueue,proto3" json:"enqueue,omitempty"`
+	Enqueue []*ChildJob `protobuf:"bytes,2,rep,name=enqueue,proto3" json:"enqueue,omitempty"`
+	// Queued jobs river-service should cancel, e.g. the pending status polls
+	// of a post withdrawn from Zernio. A running job finishes its attempt.
+	Cancel        []*JobMatch `protobuf:"bytes,3,rep,name=cancel,proto3" json:"cancel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1303,6 +1324,121 @@ func (x *StepDone) GetEnqueue() []*ChildJob {
 	return nil
 }
 
+func (x *StepDone) GetCancel() []*JobMatch {
+	if x != nil {
+		return x.Cancel
+	}
+	return nil
+}
+
+// JobMatch selects the queued jobs of one kind whose arguments match every
+// condition.
+type JobMatch struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Args          []*ArgMatch            `protobuf:"bytes,2,rep,name=args,proto3" json:"args,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JobMatch) Reset() {
+	*x = JobMatch{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JobMatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JobMatch) ProtoMessage() {}
+
+func (x *JobMatch) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JobMatch.ProtoReflect.Descriptor instead.
+func (*JobMatch) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *JobMatch) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *JobMatch) GetArgs() []*ArgMatch {
+	if x != nil {
+		return x.Args
+	}
+	return nil
+}
+
+// ArgMatch holds when the top-level string argument key is one of values. An
+// empty value also matches a job whose arguments lack the key.
+type ArgMatch struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Values        []string               `protobuf:"bytes,2,rep,name=values,proto3" json:"values,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArgMatch) Reset() {
+	*x = ArgMatch{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArgMatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArgMatch) ProtoMessage() {}
+
+func (x *ArgMatch) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArgMatch.ProtoReflect.Descriptor instead.
+func (*ArgMatch) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ArgMatch) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ArgMatch) GetValues() []string {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
 // ChildJob is a job river-service enqueues on ogen's behalf.
 type ChildJob struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1315,7 +1451,7 @@ type ChildJob struct {
 
 func (x *ChildJob) Reset() {
 	*x = ChildJob{}
-	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[18]
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1327,7 +1463,7 @@ func (x *ChildJob) String() string {
 func (*ChildJob) ProtoMessage() {}
 
 func (x *ChildJob) ProtoReflect() protoreflect.Message {
-	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[18]
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1340,7 +1476,7 @@ func (x *ChildJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChildJob.ProtoReflect.Descriptor instead.
 func (*ChildJob) Descriptor() ([]byte, []int) {
-	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{18}
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ChildJob) GetKind() string {
@@ -1368,7 +1504,7 @@ type StepRetry struct {
 
 func (x *StepRetry) Reset() {
 	*x = StepRetry{}
-	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[19]
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1380,7 +1516,7 @@ func (x *StepRetry) String() string {
 func (*StepRetry) ProtoMessage() {}
 
 func (x *StepRetry) ProtoReflect() protoreflect.Message {
-	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[19]
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1393,7 +1529,7 @@ func (x *StepRetry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepRetry.ProtoReflect.Descriptor instead.
 func (*StepRetry) Descriptor() ([]byte, []int) {
-	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{19}
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *StepRetry) GetReason() string {
@@ -1427,7 +1563,7 @@ type MediaTransfer struct {
 
 func (x *MediaTransfer) Reset() {
 	*x = MediaTransfer{}
-	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[20]
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1439,7 +1575,7 @@ func (x *MediaTransfer) String() string {
 func (*MediaTransfer) ProtoMessage() {}
 
 func (x *MediaTransfer) ProtoReflect() protoreflect.Message {
-	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[20]
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1452,7 +1588,7 @@ func (x *MediaTransfer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaTransfer.ProtoReflect.Descriptor instead.
 func (*MediaTransfer) Descriptor() ([]byte, []int) {
-	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{20}
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *MediaTransfer) GetSourceUrl() string {
@@ -1524,12 +1660,14 @@ const file_jobrpc_v1_jobrpc_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\v2\x17.jobrpc.v1.EmailMessageR\amessage\x12.\n" +
 	"\x13provider_message_id\x18\x04 \x01(\tR\x11providerMessageId\x12\x14\n" +
 	"\x05error\x18\x05 \x01(\tR\x05error\"\x1c\n" +
-	"\x1aRecordEmailOutcomeResponse\"z\n" +
+	"\x1aRecordEmailOutcomeResponse\"\xb7\x01\n" +
 	"\vStepRequest\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04args\x18\x02 \x01(\fR\x04args\x12\x14\n" +
 	"\x05state\x18\x03 \x01(\fR\x05state\x12-\n" +
-	"\x06result\x18\x04 \x01(\v2\x15.jobrpc.v1.StepResultR\x06result\"\x9c\x02\n" +
+	"\x06result\x18\x04 \x01(\v2\x15.jobrpc.v1.StepResultR\x06result\x12\x18\n" +
+	"\aattempt\x18\x05 \x01(\x05R\aattempt\x12!\n" +
+	"\fmax_attempts\x18\x06 \x01(\x05R\vmaxAttempts\"\x9c\x02\n" +
 	"\fStepResponse\x12\x14\n" +
 	"\x05state\x18\x01 \x01(\fR\x05state\x12)\n" +
 	"\x04http\x18\x02 \x01(\v2\x13.jobrpc.v1.HttpCallH\x00R\x04http\x12)\n" +
@@ -1570,10 +1708,17 @@ const file_jobrpc_v1_jobrpc_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\x05R\x06status\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\fR\x04body\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12-\n" +
-	"\x12credential_missing\x18\x04 \x01(\bR\x11credentialMissing\"S\n" +
+	"\x12credential_missing\x18\x04 \x01(\bR\x11credentialMissing\"\x80\x01\n" +
 	"\bStepDone\x12\x18\n" +
 	"\aoutcome\x18\x01 \x01(\tR\aoutcome\x12-\n" +
-	"\aenqueue\x18\x02 \x03(\v2\x13.jobrpc.v1.ChildJobR\aenqueue\"2\n" +
+	"\aenqueue\x18\x02 \x03(\v2\x13.jobrpc.v1.ChildJobR\aenqueue\x12+\n" +
+	"\x06cancel\x18\x03 \x03(\v2\x13.jobrpc.v1.JobMatchR\x06cancel\"G\n" +
+	"\bJobMatch\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12'\n" +
+	"\x04args\x18\x02 \x03(\v2\x13.jobrpc.v1.ArgMatchR\x04args\"4\n" +
+	"\bArgMatch\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x16\n" +
+	"\x06values\x18\x02 \x03(\tR\x06values\"2\n" +
 	"\bChildJob\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04args\x18\x02 \x01(\fR\x04args\"T\n" +
@@ -1617,7 +1762,7 @@ func file_jobrpc_v1_jobrpc_proto_rawDescGZIP() []byte {
 }
 
 var file_jobrpc_v1_jobrpc_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_jobrpc_v1_jobrpc_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_jobrpc_v1_jobrpc_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_jobrpc_v1_jobrpc_proto_goTypes = []any{
 	(EmailOutcome)(0),                  // 0: jobrpc.v1.EmailOutcome
 	(*LeaseRequest)(nil),               // 1: jobrpc.v1.LeaseRequest
@@ -1638,51 +1783,55 @@ var file_jobrpc_v1_jobrpc_proto_goTypes = []any{
 	(*StreamSource)(nil),               // 16: jobrpc.v1.StreamSource
 	(*StepResult)(nil),                 // 17: jobrpc.v1.StepResult
 	(*StepDone)(nil),                   // 18: jobrpc.v1.StepDone
-	(*ChildJob)(nil),                   // 19: jobrpc.v1.ChildJob
-	(*StepRetry)(nil),                  // 20: jobrpc.v1.StepRetry
-	(*MediaTransfer)(nil),              // 21: jobrpc.v1.MediaTransfer
-	nil,                                // 22: jobrpc.v1.EmailMessage.HeadersEntry
-	nil,                                // 23: jobrpc.v1.HttpCall.HeadersEntry
-	(*timestamppb.Timestamp)(nil),      // 24: google.protobuf.Timestamp
-	(*v1.SendEmailArgs)(nil),           // 25: jobs.v1.SendEmailArgs
-	(*durationpb.Duration)(nil),        // 26: google.protobuf.Duration
+	(*JobMatch)(nil),                   // 19: jobrpc.v1.JobMatch
+	(*ArgMatch)(nil),                   // 20: jobrpc.v1.ArgMatch
+	(*ChildJob)(nil),                   // 21: jobrpc.v1.ChildJob
+	(*StepRetry)(nil),                  // 22: jobrpc.v1.StepRetry
+	(*MediaTransfer)(nil),              // 23: jobrpc.v1.MediaTransfer
+	nil,                                // 24: jobrpc.v1.EmailMessage.HeadersEntry
+	nil,                                // 25: jobrpc.v1.HttpCall.HeadersEntry
+	(*timestamppb.Timestamp)(nil),      // 26: google.protobuf.Timestamp
+	(*v1.SendEmailArgs)(nil),           // 27: jobs.v1.SendEmailArgs
+	(*durationpb.Duration)(nil),        // 28: google.protobuf.Duration
 }
 var file_jobrpc_v1_jobrpc_proto_depIdxs = []int32{
-	24, // 0: jobrpc.v1.LeaseResponse.expires_at:type_name -> google.protobuf.Timestamp
-	25, // 1: jobrpc.v1.PrepareEmailRequest.args:type_name -> jobs.v1.SendEmailArgs
+	26, // 0: jobrpc.v1.LeaseResponse.expires_at:type_name -> google.protobuf.Timestamp
+	27, // 1: jobrpc.v1.PrepareEmailRequest.args:type_name -> jobs.v1.SendEmailArgs
 	7,  // 2: jobrpc.v1.PrepareEmailResponse.send:type_name -> jobrpc.v1.EmailMessage
 	8,  // 3: jobrpc.v1.PrepareEmailResponse.settled:type_name -> jobrpc.v1.EmailSettled
-	22, // 4: jobrpc.v1.EmailMessage.headers:type_name -> jobrpc.v1.EmailMessage.HeadersEntry
-	25, // 5: jobrpc.v1.RecordEmailOutcomeRequest.args:type_name -> jobs.v1.SendEmailArgs
+	24, // 4: jobrpc.v1.EmailMessage.headers:type_name -> jobrpc.v1.EmailMessage.HeadersEntry
+	27, // 5: jobrpc.v1.RecordEmailOutcomeRequest.args:type_name -> jobs.v1.SendEmailArgs
 	0,  // 6: jobrpc.v1.RecordEmailOutcomeRequest.outcome:type_name -> jobrpc.v1.EmailOutcome
 	7,  // 7: jobrpc.v1.RecordEmailOutcomeRequest.message:type_name -> jobrpc.v1.EmailMessage
 	17, // 8: jobrpc.v1.StepRequest.result:type_name -> jobrpc.v1.StepResult
 	13, // 9: jobrpc.v1.StepResponse.http:type_name -> jobrpc.v1.HttpCall
 	18, // 10: jobrpc.v1.StepResponse.done:type_name -> jobrpc.v1.StepDone
-	20, // 11: jobrpc.v1.StepResponse.retry:type_name -> jobrpc.v1.StepRetry
-	21, // 12: jobrpc.v1.StepResponse.transfer:type_name -> jobrpc.v1.MediaTransfer
+	22, // 11: jobrpc.v1.StepResponse.retry:type_name -> jobrpc.v1.StepRetry
+	23, // 12: jobrpc.v1.StepResponse.transfer:type_name -> jobrpc.v1.MediaTransfer
 	15, // 13: jobrpc.v1.StepResponse.sidecar:type_name -> jobrpc.v1.SidecarCall
 	14, // 14: jobrpc.v1.HttpCall.query:type_name -> jobrpc.v1.QueryParam
-	23, // 15: jobrpc.v1.HttpCall.headers:type_name -> jobrpc.v1.HttpCall.HeadersEntry
+	25, // 15: jobrpc.v1.HttpCall.headers:type_name -> jobrpc.v1.HttpCall.HeadersEntry
 	16, // 16: jobrpc.v1.SidecarCall.stream:type_name -> jobrpc.v1.StreamSource
-	26, // 17: jobrpc.v1.SidecarCall.timeout:type_name -> google.protobuf.Duration
-	19, // 18: jobrpc.v1.StepDone.enqueue:type_name -> jobrpc.v1.ChildJob
-	26, // 19: jobrpc.v1.StepRetry.after:type_name -> google.protobuf.Duration
-	1,  // 20: jobrpc.v1.CredentialService.Lease:input_type -> jobrpc.v1.LeaseRequest
-	3,  // 21: jobrpc.v1.MaintenanceService.Run:input_type -> jobrpc.v1.RunRequest
-	5,  // 22: jobrpc.v1.EmailJobService.PrepareEmail:input_type -> jobrpc.v1.PrepareEmailRequest
-	9,  // 23: jobrpc.v1.EmailJobService.RecordEmailOutcome:input_type -> jobrpc.v1.RecordEmailOutcomeRequest
-	11, // 24: jobrpc.v1.JobStepService.Step:input_type -> jobrpc.v1.StepRequest
-	2,  // 25: jobrpc.v1.CredentialService.Lease:output_type -> jobrpc.v1.LeaseResponse
-	4,  // 26: jobrpc.v1.MaintenanceService.Run:output_type -> jobrpc.v1.RunResponse
-	6,  // 27: jobrpc.v1.EmailJobService.PrepareEmail:output_type -> jobrpc.v1.PrepareEmailResponse
-	10, // 28: jobrpc.v1.EmailJobService.RecordEmailOutcome:output_type -> jobrpc.v1.RecordEmailOutcomeResponse
-	12, // 29: jobrpc.v1.JobStepService.Step:output_type -> jobrpc.v1.StepResponse
-	25, // [25:30] is the sub-list for method output_type
-	20, // [20:25] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	28, // 17: jobrpc.v1.SidecarCall.timeout:type_name -> google.protobuf.Duration
+	21, // 18: jobrpc.v1.StepDone.enqueue:type_name -> jobrpc.v1.ChildJob
+	19, // 19: jobrpc.v1.StepDone.cancel:type_name -> jobrpc.v1.JobMatch
+	20, // 20: jobrpc.v1.JobMatch.args:type_name -> jobrpc.v1.ArgMatch
+	28, // 21: jobrpc.v1.StepRetry.after:type_name -> google.protobuf.Duration
+	1,  // 22: jobrpc.v1.CredentialService.Lease:input_type -> jobrpc.v1.LeaseRequest
+	3,  // 23: jobrpc.v1.MaintenanceService.Run:input_type -> jobrpc.v1.RunRequest
+	5,  // 24: jobrpc.v1.EmailJobService.PrepareEmail:input_type -> jobrpc.v1.PrepareEmailRequest
+	9,  // 25: jobrpc.v1.EmailJobService.RecordEmailOutcome:input_type -> jobrpc.v1.RecordEmailOutcomeRequest
+	11, // 26: jobrpc.v1.JobStepService.Step:input_type -> jobrpc.v1.StepRequest
+	2,  // 27: jobrpc.v1.CredentialService.Lease:output_type -> jobrpc.v1.LeaseResponse
+	4,  // 28: jobrpc.v1.MaintenanceService.Run:output_type -> jobrpc.v1.RunResponse
+	6,  // 29: jobrpc.v1.EmailJobService.PrepareEmail:output_type -> jobrpc.v1.PrepareEmailResponse
+	10, // 30: jobrpc.v1.EmailJobService.RecordEmailOutcome:output_type -> jobrpc.v1.RecordEmailOutcomeResponse
+	12, // 31: jobrpc.v1.JobStepService.Step:output_type -> jobrpc.v1.StepResponse
+	27, // [27:32] is the sub-list for method output_type
+	22, // [22:27] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_jobrpc_v1_jobrpc_proto_init() }
@@ -1707,7 +1856,7 @@ func file_jobrpc_v1_jobrpc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_jobrpc_v1_jobrpc_proto_rawDesc), len(file_jobrpc_v1_jobrpc_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   23,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   4,
 		},

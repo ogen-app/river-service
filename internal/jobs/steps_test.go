@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertest"
 	"github.com/riverqueue/river/rivertype"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -100,6 +101,9 @@ func TestStepWorkerRunsTheLoop(t *testing.T) {
 	if len(steps.requests) != 4 {
 		t.Fatalf("steps = %d, want 4", len(steps.requests))
 	}
+	if r := steps.requests[0]; r.GetAttempt() != 1 || r.GetMaxAttempts() != 5 {
+		t.Errorf("attempt %d of %d, want 1 of 5", r.GetAttempt(), r.GetMaxAttempts())
+	}
 	first, second := steps.requests[0], steps.requests[1]
 	var args BootstrapZernioProfileArgs
 	if err := json.Unmarshal(first.GetArgs(), &args); err != nil || args.TenantID != "t1" || first.GetKind() != "bootstrap_zernio_profile" || first.GetResult() != nil {
@@ -151,26 +155,8 @@ func TestChildKinds(t *testing.T) {
 // River client: ogen's (scripted) step fans it out, and River then runs one
 // tenant job per child.
 func TestSweepFansOutIntoTenantJobs(t *testing.T) {
-	dsn := os.Getenv("TEST_DATABASE_DSN")
-	if dsn == "" {
-		t.Skip("TEST_DATABASE_DSN not set")
-	}
 	ctx := t.Context()
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(pool.Close)
-	schema := fmt.Sprintf("rs_zernio_%d", time.Now().UnixNano())
-	if _, err := pool.Exec(ctx, "CREATE SCHEMA "+pgx.Identifier{schema}.Sanitize()); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		_, _ = pool.Exec(context.Background(), "DROP SCHEMA "+pgx.Identifier{schema}.Sanitize()+" CASCADE")
-	})
-	if err := queue.Migrate(ctx, pool, schema); err != nil {
-		t.Fatal(err)
-	}
+	pool, schema := testSchema(t)
 
 	steps := &scriptedSteps{byKind: func(in *jobrpcv1.StepRequest) *jobrpcv1.StepResponse {
 		if in.GetKind() == "detect_expiring_connections" {
@@ -219,4 +205,95 @@ func TestSweepFansOutIntoTenantJobs(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	t.Fatal("the sweep's tenant jobs did not run")
+}
+
+// testSchema returns a pool and a fresh migrated River schema, dropped after
+// the test.
+func testSchema(t *testing.T) (*pgxpool.Pool, string) {
+	t.Helper()
+	dsn := os.Getenv("TEST_DATABASE_DSN")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_DSN not set")
+	}
+	ctx := t.Context()
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	schema := fmt.Sprintf("rs_steps_%d", time.Now().UnixNano())
+	if _, err := pool.Exec(ctx, "CREATE SCHEMA "+pgx.Identifier{schema}.Sanitize()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), "DROP SCHEMA "+pgx.Identifier{schema}.Sanitize()+" CASCADE")
+	})
+	if err := queue.Migrate(ctx, pool, schema); err != nil {
+		t.Fatal(err)
+	}
+	return pool, schema
+}
+
+func TestMatchSQLBindsEveryCondition(t *testing.T) {
+	where, named := matchSQL([]*jobrpcv1.ArgMatch{{Key: "post_id", Values: []string{"p1"}}, {Key: "publisher_post_id", Values: []string{"", "z-1"}}})
+	if where != "COALESCE(args->>@k0, '') = ANY(@v0) AND COALESCE(args->>@k1, '') = ANY(@v1)" {
+		t.Errorf("where = %s", where)
+	}
+	if named["k1"] != "publisher_post_id" || !slices.Equal(named["v1"].([]string), []string{"", "z-1"}) {
+		t.Errorf("named = %v", named)
+	}
+}
+
+// TestDoneCancelsMatchingJobs checks a done step's cancel list against real
+// queued jobs: only the matching ones are cancelled, a missing key counts as
+// empty, and other kinds and values are left alone.
+func TestDoneCancelsMatchingJobs(t *testing.T) {
+	ctx := t.Context()
+	pool, schema := testSchema(t)
+	cfg := &config.Config{
+		RiverSchema: schema, RiverQueues: []string{config.QueueDefault}, DefaultWorkers: 1,
+		ShutdownTimeout: time.Minute, RescueStuckJobsAfter: time.Hour,
+	}
+	reg := queue.NewRegistry()
+	registerZernioLifecycle(reg, cfg, stepDeps{ogen: &scriptedSteps{}, actions: &recordingActions{}, children: newChildKinds()}, &fakeMaintenance{})
+	client, err := queue.NewClient(pool, cfg, reg, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	later := &river.InsertOpts{ScheduledAt: time.Now().Add(time.Hour)}
+	ids := map[string]int64{}
+	for name, a := range map[string]ExpiringConnectionsTenantArgs{
+		"match":   {TenantID: "t1", ProfileID: "p1"},
+		"legacy":  {TenantID: "t1"},
+		"other":   {TenantID: "t1", ProfileID: "p2"},
+		"elsewho": {TenantID: "t2", ProfileID: "p1"},
+	} {
+		res, err := client.Insert(ctx, a, later)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids[name] = res.Job.ID
+	}
+
+	w := newStepWorker[ExpiringConnectionsTenantArgs](stepDeps{children: newChildKinds()}, 0)
+	err = w.finish(rivertest.WorkContext(ctx, client), "test", &jobrpcv1.StepDone{Cancel: []*jobrpcv1.JobMatch{{
+		Kind: "detect_expiring_connections_tenant",
+		Args: []*jobrpcv1.ArgMatch{{Key: "tenant_id", Values: []string{"t1"}}, {Key: "profile_id", Values: []string{"", "p1"}}},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]rivertype.JobState{
+		"match": rivertype.JobStateCancelled, "legacy": rivertype.JobStateCancelled,
+		"other": rivertype.JobStateScheduled, "elsewho": rivertype.JobStateScheduled,
+	}
+	for name, id := range ids {
+		job, err := client.JobGet(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if job.State != want[name] {
+			t.Errorf("%s: state %s, want %s", name, job.State, want[name])
+		}
+	}
 }
