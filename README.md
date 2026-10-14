@@ -138,9 +138,10 @@ is leader.
 **Variables per service.** Both: `DATABASE_DSN`, `RIVER_SCHEMA`,
 `OGEN_GRPC_ADDR`, `OGEN_RPC_AUTH_TOKEN`, `SOFT_STOP_TIMEOUT`,
 `SHUTDOWN_TIMEOUT`, `SENTRY_*`, `LOG_*`. `river-service` only: `GRPC_ADDR` and
-`GRPC_AUTH_TOKEN` (the `JobService` ogen relays to), the cadences of the
-periodic sweeps (its leader schedules them; the heavy service schedules
-none, as its queues hold no periodic kind), `HARBOR_WEBHOOK_URL`.
+`GRPC_AUTH_TOKEN` (the `JobService` ogen relays to), `HARBOR_WEBHOOK_URL`.
+The sweep cadences (`*_EVERY`, `*_INTERVAL`) go on both, with the same
+values: the two services share one schema and so one leader election, and
+whichever replica leads schedules every sweep.
 `river-service-heavy` only: `PDF_SERVICE_ADDR`, `DOCUMENTS_SERVICE_ADDR`,
 `IMAGE_SERVICE_ADDR`, `AUDIO_SERVICE_ADDR` (the sidecars' private
 addresses), `GEMINI_*` and `FIRECRAWL_*` overrides if any. Worker counts:
