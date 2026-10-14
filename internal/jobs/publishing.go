@@ -6,6 +6,7 @@ import (
 	"github.com/riverqueue/river"
 
 	jobsv1 "github.com/ogen-app/river-service/gen/jobs/v1"
+	"github.com/ogen-app/river-service/internal/config"
 	"github.com/ogen-app/river-service/internal/queue"
 )
 
@@ -74,6 +75,96 @@ func (PostFirstCommentArgs) Kind() string { return "post_first_comment" }
 // InsertOpts: one live job per comment.
 func (PostFirstCommentArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{MaxAttempts: 5, UniqueOpts: river.UniqueOpts{ByArgs: true, ByState: waitingStates}}
+}
+
+// The publishing sweeps. Reconcile and manual-publish-due only touch ogen's
+// tables, so they run in ogen (MaintenanceService.Run). The orphan sweep and
+// the analytics and follower refreshes call Zernio, so each fans out into one
+// step-run job per tenant profile.
+
+// ReconcileScheduledPostsArgs fails posts stuck in Scheduled past their grace.
+type ReconcileScheduledPostsArgs struct{}
+
+func (ReconcileScheduledPostsArgs) Kind() string                 { return "reconcile_scheduled_posts" }
+func (ReconcileScheduledPostsArgs) InsertOpts() river.InsertOpts { return sweepOpts() }
+
+// DetectManualPublishDueArgs notifies owners of manual posts now due.
+type DetectManualPublishDueArgs struct{}
+
+func (DetectManualPublishDueArgs) Kind() string                 { return "detect_manual_publish_due" }
+func (DetectManualPublishDueArgs) InsertOpts() river.InsertOpts { return sweepOpts() }
+
+// SweepZernioOrphansArgs withdraws Zernio posts no scheduled Ogen post holds.
+type SweepZernioOrphansArgs struct{}
+
+func (SweepZernioOrphansArgs) Kind() string                 { return "sweep_zernio_orphans" }
+func (SweepZernioOrphansArgs) InsertOpts() river.InsertOpts { return sweepOpts() }
+
+// RefreshZernioAnalyticsArgs refreshes published posts' analytics.
+type RefreshZernioAnalyticsArgs struct{}
+
+func (RefreshZernioAnalyticsArgs) Kind() string                 { return "refresh_zernio_analytics" }
+func (RefreshZernioAnalyticsArgs) InsertOpts() river.InsertOpts { return sweepOpts() }
+
+// RefreshZernioFollowersArgs snapshots connected accounts' follower counts.
+type RefreshZernioFollowersArgs struct{}
+
+func (RefreshZernioFollowersArgs) Kind() string                 { return "refresh_zernio_followers" }
+func (RefreshZernioFollowersArgs) InsertOpts() river.InsertOpts { return sweepOpts() }
+
+// OrphanSweepProfileArgs sweeps one tenant profile.
+type OrphanSweepProfileArgs struct {
+	TenantID  string `json:"tenant_id"`
+	ProfileID string `json:"profile_id"`
+}
+
+func (OrphanSweepProfileArgs) Kind() string                 { return "sweep_zernio_orphans_profile" }
+func (OrphanSweepProfileArgs) InsertOpts() river.InsertOpts { return tenantChildOpts() }
+
+// AnalyticsTenantArgs refreshes one tenant's analytics.
+type AnalyticsTenantArgs struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (AnalyticsTenantArgs) Kind() string                 { return "refresh_zernio_analytics_tenant" }
+func (AnalyticsTenantArgs) InsertOpts() river.InsertOpts { return tenantChildOpts() }
+
+// FollowersTenantArgs refreshes one tenant's follower stats.
+type FollowersTenantArgs struct {
+	TenantID  string `json:"tenant_id"`
+	ProfileID string `json:"profile_id"`
+}
+
+func (FollowersTenantArgs) Kind() string                 { return "refresh_zernio_followers_tenant" }
+func (FollowersTenantArgs) InsertOpts() river.InsertOpts { return tenantChildOpts() }
+
+// tenantChildOpts: one attempt, as the sweep had (the next tick tries again),
+// and one waiting job per tenant.
+func tenantChildOpts() river.InsertOpts {
+	return river.InsertOpts{MaxAttempts: 1, UniqueOpts: river.UniqueOpts{ByArgs: true, ByState: waitingStates}}
+}
+
+// Attempt bounds of the sweeps' jobs. A fan-out step is one query; a tenant
+// job pages through Zernio, a few seconds a page.
+const (
+	fanOutTimeout      = time.Minute
+	tenantChildTimeout = 5 * time.Minute
+)
+
+func registerPublishingSweeps(reg *queue.Registry, cfg *config.Config, d stepDeps, maintenance Maintenance) {
+	queue.RegisterPeriodic(reg, &sweepWorker[ReconcileScheduledPostsArgs]{rpc: maintenance}, cfg.ReconcileEvery, ReconcileScheduledPostsArgs{})
+	queue.RegisterPeriodic(reg, &sweepWorker[DetectManualPublishDueArgs]{rpc: maintenance}, cfg.ManualPublishDueSweepEvery, DetectManualPublishDueArgs{})
+
+	queue.RegisterPeriodic(reg, newStepWorker[SweepZernioOrphansArgs](d, fanOutTimeout), cfg.ZernioOrphanSweepInterval, SweepZernioOrphansArgs{})
+	queue.RegisterPeriodic(reg, newStepWorker[RefreshZernioAnalyticsArgs](d, fanOutTimeout), cfg.ZernioAnalyticsRefreshInterval, RefreshZernioAnalyticsArgs{})
+	queue.RegisterPeriodic(reg, newStepWorker[RefreshZernioFollowersArgs](d, fanOutTimeout), cfg.ZernioFollowerRefreshInterval, RefreshZernioFollowersArgs{})
+
+	queue.RegisterInternal(reg, newStepWorker[OrphanSweepProfileArgs](d, tenantChildTimeout))
+	d.children.build[OrphanSweepProfileArgs{}.Kind()] = childOf[OrphanSweepProfileArgs]()
+	queue.RegisterInternal(reg, newStepWorker[AnalyticsTenantArgs](d, tenantChildTimeout))
+	d.children.build[AnalyticsTenantArgs{}.Kind()] = childOf[AnalyticsTenantArgs]()
+	queue.RegisterInternal(reg, newStepWorker[FollowersTenantArgs](d, tenantChildTimeout))
+	d.children.build[FollowersTenantArgs{}.Kind()] = childOf[FollowersTenantArgs]()
 }
 
 func registerPublishing(reg *queue.Registry, d stepDeps) {

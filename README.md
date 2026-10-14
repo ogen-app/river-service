@@ -31,6 +31,8 @@ is refused by `Enqueue` with `UNIMPLEMENTED`, and ogen keeps it in its outbox.
 | Email | `send_email`, `cleanup_email_logs` | ogen prepares and renders (`EmailJobService.PrepareEmail`), river-service sends through Resend with a leased key, ogen records the outcome (`RecordEmailOutcome`). The log sweep runs in ogen. |
 | Harbor webhook | `notify_harbor_tenant_registered` | Runs here; the payload is just the tenant id, signed with a key leased from ogen |
 | Zernio lifecycle | `bootstrap_zernio_profile`, `teardown_zernio_profile`, `detect_expiring_connections` (fans out into `detect_expiring_connections_tenant`), `cleanup_zernio_connect_sessions` | Step-run jobs (below): Zernio calls go out from here with a key leased from ogen, and ogen plans each one and applies the result (`JobStepService.Step`). The connect-session sweep runs in ogen. |
+| Publishing | `submit_post_to_zernio`, `poll_zernio_status`, `cancel_zernio_job`, `withdraw_zernio_post`, `post_first_comment` | Step-run jobs. Submit streams each attachment from storage to Zernio (presign, then a media transfer). Polls snooze themselves until the post is published or fails. Withdrawing a post cancels its pending polls. |
+| Publishing sweeps | `reconcile_scheduled_posts`, `detect_manual_publish_due`, `sweep_zernio_orphans` (fans out into `sweep_zernio_orphans_profile`), `refresh_zernio_analytics` (into `refresh_zernio_analytics_tenant`), `refresh_zernio_followers` (into `refresh_zernio_followers_tenant`) | Reconcile and manual-publish-due run in ogen through `MaintenanceService.Run`. The others fan out into one step-run job per tenant profile. |
 
 ### How a step-run job runs
 
@@ -95,6 +97,8 @@ so deploy river-service first, then list the family there.
 | `PDF_SERVICE_ADDR` / `DOCUMENTS_SERVICE_ADDR` / `IMAGE_SERVICE_ADDR` / `AUDIO_SERVICE_ADDR` | empty | Sidecar gRPC addresses, set on the heavy service. A sidecar left unset behaves as it does in ogen without it. |
 | `SIDECAR_MAX_RECV_BYTES` | `134217728` (128 MiB) | Largest sidecar response accepted |
 | `ZERNIO_HEALTH_CHECK_INTERVAL` | `6h` | Connection-health sweep cadence; `0` turns it off. |
+| `RECONCILE_EVERY` / `MANUAL_PUBLISH_DUE_SWEEP_EVERY` | `5m` / `1h` | Cadence of the two publishing sweeps that run in ogen; `0` turns one off. |
+| `ZERNIO_ORPHAN_SWEEP_INTERVAL` / `ZERNIO_ANALYTICS_REFRESH_INTERVAL` / `ZERNIO_FOLLOWER_REFRESH_INTERVAL` | `1h` / `1h` / `24h` | Cadence of the Zernio sweeps; `0` turns one off. Whether the orphan sweep withdraws anything (`ZERNIO_ORPHAN_SWEEP_LIVE`) stays in ogen. |
 | `EMAIL_BASE_URL` / `EMAIL_HTTP_TIMEOUT` | `https://api.resend.com` / `15s` | Resend endpoint and per-call timeout. The API key is leased from ogen; with no key set in ogen, sends are logged as skipped. |
 | `HARBOR_WEBHOOK_URL` | empty | Harbor's new-tenant webhook. Empty turns it off. The HMAC key (`X-Ogen-Signature`) is leased from ogen's `HARBOR_WEBHOOK_SECRET`; with none set the webhook goes out unsigned. |
 | `HEALTH_ADDR` | `:$PORT`, else `:8080` | HTTP `/healthz` (process up) and `/readyz` (serving and database reachable). Unset, it follows `PORT`, which is where Railway sends healthchecks. |

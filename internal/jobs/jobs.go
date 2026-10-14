@@ -33,6 +33,7 @@ func Registry(cfg *config.Config, ogen *ogenrpc.Client) *queue.Registry {
 	steps := stepDeps{ogen: ogen.Steps, actions: newActions(cfg, keys), children: newChildKinds()}
 	registerZernioLifecycle(reg, cfg, steps, ogen.Maintenance)
 	registerPublishing(reg, steps)
+	registerPublishingSweeps(reg, cfg, steps, ogen.Maintenance)
 	return reg
 }
 

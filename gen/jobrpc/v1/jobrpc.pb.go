@@ -182,8 +182,9 @@ type RunRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The sweep: "cleanup_post_logs", "cleanup_notifications",
 	// "cleanup_login_security", "cleanup_plugin_pairings",
-	// "sweep_pending_uploads", "cleanup_email_logs" or
-	// "cleanup_zernio_connect_sessions". Any other name is INVALID_ARGUMENT.
+	// "sweep_pending_uploads", "cleanup_email_logs",
+	// "cleanup_zernio_connect_sessions", "reconcile_scheduled_posts" or
+	// "detect_manual_publish_due". Any other name is INVALID_ARGUMENT.
 	Task          string `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
