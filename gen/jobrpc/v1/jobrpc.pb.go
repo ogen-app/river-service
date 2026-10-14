@@ -7,6 +7,7 @@
 package jobrpcv1
 
 import (
+	v1 "github.com/ogen-app/river-service/gen/jobs/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -21,6 +22,61 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+type EmailOutcome int32
+
+const (
+	EmailOutcome_EMAIL_OUTCOME_UNSPECIFIED EmailOutcome = 0
+	// The provider accepted the message.
+	EmailOutcome_EMAIL_OUTCOME_SENT EmailOutcome = 1
+	// The provider rejected it terminally (not worth a retry).
+	EmailOutcome_EMAIL_OUTCOME_FAILED EmailOutcome = 2
+	// No Resend key is set, so sending is off.
+	EmailOutcome_EMAIL_OUTCOME_SKIPPED_DISABLED EmailOutcome = 3
+)
+
+// Enum value maps for EmailOutcome.
+var (
+	EmailOutcome_name = map[int32]string{
+		0: "EMAIL_OUTCOME_UNSPECIFIED",
+		1: "EMAIL_OUTCOME_SENT",
+		2: "EMAIL_OUTCOME_FAILED",
+		3: "EMAIL_OUTCOME_SKIPPED_DISABLED",
+	}
+	EmailOutcome_value = map[string]int32{
+		"EMAIL_OUTCOME_UNSPECIFIED":      0,
+		"EMAIL_OUTCOME_SENT":             1,
+		"EMAIL_OUTCOME_FAILED":           2,
+		"EMAIL_OUTCOME_SKIPPED_DISABLED": 3,
+	}
+)
+
+func (x EmailOutcome) Enum() *EmailOutcome {
+	p := new(EmailOutcome)
+	*p = x
+	return p
+}
+
+func (x EmailOutcome) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (EmailOutcome) Descriptor() protoreflect.EnumDescriptor {
+	return file_jobrpc_v1_jobrpc_proto_enumTypes[0].Descriptor()
+}
+
+func (EmailOutcome) Type() protoreflect.EnumType {
+	return &file_jobrpc_v1_jobrpc_proto_enumTypes[0]
+}
+
+func (x EmailOutcome) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EmailOutcome.Descriptor instead.
+func (EmailOutcome) EnumDescriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{0}
+}
 
 type LeaseRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -124,8 +180,9 @@ func (x *LeaseResponse) GetExpiresAt() *timestamppb.Timestamp {
 type RunRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The sweep: "cleanup_post_logs", "cleanup_notifications",
-	// "cleanup_login_security", "cleanup_plugin_pairings" or
-	// "sweep_pending_uploads". Any other name is INVALID_ARGUMENT.
+	// "cleanup_login_security", "cleanup_plugin_pairings",
+	// "sweep_pending_uploads" or "cleanup_email_logs". Any other name is
+	// INVALID_ARGUMENT.
 	Task          string `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -206,11 +263,403 @@ func (*RunResponse) Descriptor() ([]byte, []int) {
 	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{3}
 }
 
+type PrepareEmailRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Args          *v1.SendEmailArgs      `protobuf:"bytes,1,opt,name=args,proto3" json:"args,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PrepareEmailRequest) Reset() {
+	*x = PrepareEmailRequest{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrepareEmailRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrepareEmailRequest) ProtoMessage() {}
+
+func (x *PrepareEmailRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrepareEmailRequest.ProtoReflect.Descriptor instead.
+func (*PrepareEmailRequest) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PrepareEmailRequest) GetArgs() *v1.SendEmailArgs {
+	if x != nil {
+		return x.Args
+	}
+	return nil
+}
+
+type PrepareEmailResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Result:
+	//
+	//	*PrepareEmailResponse_Send
+	//	*PrepareEmailResponse_Settled
+	Result        isPrepareEmailResponse_Result `protobuf_oneof:"result"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PrepareEmailResponse) Reset() {
+	*x = PrepareEmailResponse{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrepareEmailResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrepareEmailResponse) ProtoMessage() {}
+
+func (x *PrepareEmailResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrepareEmailResponse.ProtoReflect.Descriptor instead.
+func (*PrepareEmailResponse) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PrepareEmailResponse) GetResult() isPrepareEmailResponse_Result {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
+func (x *PrepareEmailResponse) GetSend() *EmailMessage {
+	if x != nil {
+		if x, ok := x.Result.(*PrepareEmailResponse_Send); ok {
+			return x.Send
+		}
+	}
+	return nil
+}
+
+func (x *PrepareEmailResponse) GetSettled() *EmailSettled {
+	if x != nil {
+		if x, ok := x.Result.(*PrepareEmailResponse_Settled); ok {
+			return x.Settled
+		}
+	}
+	return nil
+}
+
+type isPrepareEmailResponse_Result interface {
+	isPrepareEmailResponse_Result()
+}
+
+type PrepareEmailResponse_Send struct {
+	// Send this message.
+	Send *EmailMessage `protobuf:"bytes,1,opt,name=send,proto3,oneof"`
+}
+
+type PrepareEmailResponse_Settled struct {
+	// Nothing to send; ogen has logged why.
+	Settled *EmailSettled `protobuf:"bytes,2,opt,name=settled,proto3,oneof"`
+}
+
+func (*PrepareEmailResponse_Send) isPrepareEmailResponse_Result() {}
+
+func (*PrepareEmailResponse_Settled) isPrepareEmailResponse_Result() {}
+
+// EmailMessage is a rendered email ready for the provider.
+type EmailMessage struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	From    string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	ReplyTo string                 `protobuf:"bytes,2,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
+	To      string                 `protobuf:"bytes,3,opt,name=to,proto3" json:"to,omitempty"`
+	Subject string                 `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	Html    string                 `protobuf:"bytes,5,opt,name=html,proto3" json:"html,omitempty"`
+	Text    string                 `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
+	// Extra headers, e.g. List-Unsubscribe on marketing mail.
+	Headers map[string]string `protobuf:"bytes,7,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Passed to the provider so a retried send never delivers twice.
+	IdempotencyKey string `protobuf:"bytes,8,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *EmailMessage) Reset() {
+	*x = EmailMessage{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EmailMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EmailMessage) ProtoMessage() {}
+
+func (x *EmailMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EmailMessage.ProtoReflect.Descriptor instead.
+func (*EmailMessage) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *EmailMessage) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *EmailMessage) GetReplyTo() string {
+	if x != nil {
+		return x.ReplyTo
+	}
+	return ""
+}
+
+func (x *EmailMessage) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+func (x *EmailMessage) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *EmailMessage) GetHtml() string {
+	if x != nil {
+		return x.Html
+	}
+	return ""
+}
+
+func (x *EmailMessage) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *EmailMessage) GetHeaders() map[string]string {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
+}
+
+func (x *EmailMessage) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+type EmailSettled struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Why there is nothing to send, for logs.
+	Reason        string `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EmailSettled) Reset() {
+	*x = EmailSettled{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EmailSettled) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EmailSettled) ProtoMessage() {}
+
+func (x *EmailSettled) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EmailSettled.ProtoReflect.Descriptor instead.
+func (*EmailSettled) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *EmailSettled) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type RecordEmailOutcomeRequest struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Args    *v1.SendEmailArgs      `protobuf:"bytes,1,opt,name=args,proto3" json:"args,omitempty"`
+	Outcome EmailOutcome           `protobuf:"varint,2,opt,name=outcome,proto3,enum=jobrpc.v1.EmailOutcome" json:"outcome,omitempty"`
+	// The message river-service sent or tried to send; ogen stores its body
+	// beside the log. Unset for SKIPPED_DISABLED.
+	Message *EmailMessage `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	// The provider's message id, for SENT.
+	ProviderMessageId string `protobuf:"bytes,4,opt,name=provider_message_id,json=providerMessageId,proto3" json:"provider_message_id,omitempty"`
+	// The provider's error, for FAILED.
+	Error         string `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordEmailOutcomeRequest) Reset() {
+	*x = RecordEmailOutcomeRequest{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordEmailOutcomeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordEmailOutcomeRequest) ProtoMessage() {}
+
+func (x *RecordEmailOutcomeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordEmailOutcomeRequest.ProtoReflect.Descriptor instead.
+func (*RecordEmailOutcomeRequest) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RecordEmailOutcomeRequest) GetArgs() *v1.SendEmailArgs {
+	if x != nil {
+		return x.Args
+	}
+	return nil
+}
+
+func (x *RecordEmailOutcomeRequest) GetOutcome() EmailOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return EmailOutcome_EMAIL_OUTCOME_UNSPECIFIED
+}
+
+func (x *RecordEmailOutcomeRequest) GetMessage() *EmailMessage {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+func (x *RecordEmailOutcomeRequest) GetProviderMessageId() string {
+	if x != nil {
+		return x.ProviderMessageId
+	}
+	return ""
+}
+
+func (x *RecordEmailOutcomeRequest) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type RecordEmailOutcomeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordEmailOutcomeResponse) Reset() {
+	*x = RecordEmailOutcomeResponse{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordEmailOutcomeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordEmailOutcomeResponse) ProtoMessage() {}
+
+func (x *RecordEmailOutcomeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordEmailOutcomeResponse.ProtoReflect.Descriptor instead.
+func (*RecordEmailOutcomeResponse) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{9}
+}
+
 var File_jobrpc_v1_jobrpc_proto protoreflect.FileDescriptor
 
 const file_jobrpc_v1_jobrpc_proto_rawDesc = "" +
 	"\n" +
-	"\x16jobrpc/v1/jobrpc.proto\x12\tjobrpc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\"\n" +
+	"\x16jobrpc/v1/jobrpc.proto\x12\tjobrpc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x12jobs/v1/jobs.proto\"\"\n" +
 	"\fLeaseRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"`\n" +
 	"\rLeaseResponse\x12\x14\n" +
@@ -220,11 +669,46 @@ const file_jobrpc_v1_jobrpc_proto_rawDesc = "" +
 	"\n" +
 	"RunRequest\x12\x12\n" +
 	"\x04task\x18\x01 \x01(\tR\x04task\"\r\n" +
-	"\vRunResponse2O\n" +
+	"\vRunResponse\"A\n" +
+	"\x13PrepareEmailRequest\x12*\n" +
+	"\x04args\x18\x01 \x01(\v2\x16.jobs.v1.SendEmailArgsR\x04args\"\x84\x01\n" +
+	"\x14PrepareEmailResponse\x12-\n" +
+	"\x04send\x18\x01 \x01(\v2\x17.jobrpc.v1.EmailMessageH\x00R\x04send\x123\n" +
+	"\asettled\x18\x02 \x01(\v2\x17.jobrpc.v1.EmailSettledH\x00R\asettledB\b\n" +
+	"\x06result\"\xb4\x02\n" +
+	"\fEmailMessage\x12\x12\n" +
+	"\x04from\x18\x01 \x01(\tR\x04from\x12\x19\n" +
+	"\breply_to\x18\x02 \x01(\tR\areplyTo\x12\x0e\n" +
+	"\x02to\x18\x03 \x01(\tR\x02to\x12\x18\n" +
+	"\asubject\x18\x04 \x01(\tR\asubject\x12\x12\n" +
+	"\x04html\x18\x05 \x01(\tR\x04html\x12\x12\n" +
+	"\x04text\x18\x06 \x01(\tR\x04text\x12>\n" +
+	"\aheaders\x18\a \x03(\v2$.jobrpc.v1.EmailMessage.HeadersEntryR\aheaders\x12'\n" +
+	"\x0fidempotency_key\x18\b \x01(\tR\x0eidempotencyKey\x1a:\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"&\n" +
+	"\fEmailSettled\x12\x16\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason\"\xf3\x01\n" +
+	"\x19RecordEmailOutcomeRequest\x12*\n" +
+	"\x04args\x18\x01 \x01(\v2\x16.jobs.v1.SendEmailArgsR\x04args\x121\n" +
+	"\aoutcome\x18\x02 \x01(\x0e2\x17.jobrpc.v1.EmailOutcomeR\aoutcome\x121\n" +
+	"\amessage\x18\x03 \x01(\v2\x17.jobrpc.v1.EmailMessageR\amessage\x12.\n" +
+	"\x13provider_message_id\x18\x04 \x01(\tR\x11providerMessageId\x12\x14\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\"\x1c\n" +
+	"\x1aRecordEmailOutcomeResponse*\x83\x01\n" +
+	"\fEmailOutcome\x12\x1d\n" +
+	"\x19EMAIL_OUTCOME_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12EMAIL_OUTCOME_SENT\x10\x01\x12\x18\n" +
+	"\x14EMAIL_OUTCOME_FAILED\x10\x02\x12\"\n" +
+	"\x1eEMAIL_OUTCOME_SKIPPED_DISABLED\x10\x032O\n" +
 	"\x11CredentialService\x12:\n" +
 	"\x05Lease\x12\x17.jobrpc.v1.LeaseRequest\x1a\x18.jobrpc.v1.LeaseResponse2J\n" +
 	"\x12MaintenanceService\x124\n" +
-	"\x03Run\x12\x15.jobrpc.v1.RunRequest\x1a\x16.jobrpc.v1.RunResponseB\x9b\x01\n" +
+	"\x03Run\x12\x15.jobrpc.v1.RunRequest\x1a\x16.jobrpc.v1.RunResponse2\xc5\x01\n" +
+	"\x0fEmailJobService\x12O\n" +
+	"\fPrepareEmail\x12\x1e.jobrpc.v1.PrepareEmailRequest\x1a\x1f.jobrpc.v1.PrepareEmailResponse\x12a\n" +
+	"\x12RecordEmailOutcome\x12$.jobrpc.v1.RecordEmailOutcomeRequest\x1a%.jobrpc.v1.RecordEmailOutcomeResponseB\x9b\x01\n" +
 	"\rcom.jobrpc.v1B\vJobrpcProtoP\x01Z8github.com/ogen-app/river-service/gen/jobrpc/v1;jobrpcv1\xa2\x02\x03JXX\xaa\x02\tJobrpc.V1\xca\x02\tJobrpc\\V1\xe2\x02\x15Jobrpc\\V1\\GPBMetadata\xea\x02\n" +
 	"Jobrpc::V1b\x06proto3"
 
@@ -240,25 +724,46 @@ func file_jobrpc_v1_jobrpc_proto_rawDescGZIP() []byte {
 	return file_jobrpc_v1_jobrpc_proto_rawDescData
 }
 
-var file_jobrpc_v1_jobrpc_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_jobrpc_v1_jobrpc_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_jobrpc_v1_jobrpc_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_jobrpc_v1_jobrpc_proto_goTypes = []any{
-	(*LeaseRequest)(nil),          // 0: jobrpc.v1.LeaseRequest
-	(*LeaseResponse)(nil),         // 1: jobrpc.v1.LeaseResponse
-	(*RunRequest)(nil),            // 2: jobrpc.v1.RunRequest
-	(*RunResponse)(nil),           // 3: jobrpc.v1.RunResponse
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(EmailOutcome)(0),                  // 0: jobrpc.v1.EmailOutcome
+	(*LeaseRequest)(nil),               // 1: jobrpc.v1.LeaseRequest
+	(*LeaseResponse)(nil),              // 2: jobrpc.v1.LeaseResponse
+	(*RunRequest)(nil),                 // 3: jobrpc.v1.RunRequest
+	(*RunResponse)(nil),                // 4: jobrpc.v1.RunResponse
+	(*PrepareEmailRequest)(nil),        // 5: jobrpc.v1.PrepareEmailRequest
+	(*PrepareEmailResponse)(nil),       // 6: jobrpc.v1.PrepareEmailResponse
+	(*EmailMessage)(nil),               // 7: jobrpc.v1.EmailMessage
+	(*EmailSettled)(nil),               // 8: jobrpc.v1.EmailSettled
+	(*RecordEmailOutcomeRequest)(nil),  // 9: jobrpc.v1.RecordEmailOutcomeRequest
+	(*RecordEmailOutcomeResponse)(nil), // 10: jobrpc.v1.RecordEmailOutcomeResponse
+	nil,                                // 11: jobrpc.v1.EmailMessage.HeadersEntry
+	(*timestamppb.Timestamp)(nil),      // 12: google.protobuf.Timestamp
+	(*v1.SendEmailArgs)(nil),           // 13: jobs.v1.SendEmailArgs
 }
 var file_jobrpc_v1_jobrpc_proto_depIdxs = []int32{
-	4, // 0: jobrpc.v1.LeaseResponse.expires_at:type_name -> google.protobuf.Timestamp
-	0, // 1: jobrpc.v1.CredentialService.Lease:input_type -> jobrpc.v1.LeaseRequest
-	2, // 2: jobrpc.v1.MaintenanceService.Run:input_type -> jobrpc.v1.RunRequest
-	1, // 3: jobrpc.v1.CredentialService.Lease:output_type -> jobrpc.v1.LeaseResponse
-	3, // 4: jobrpc.v1.MaintenanceService.Run:output_type -> jobrpc.v1.RunResponse
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	12, // 0: jobrpc.v1.LeaseResponse.expires_at:type_name -> google.protobuf.Timestamp
+	13, // 1: jobrpc.v1.PrepareEmailRequest.args:type_name -> jobs.v1.SendEmailArgs
+	7,  // 2: jobrpc.v1.PrepareEmailResponse.send:type_name -> jobrpc.v1.EmailMessage
+	8,  // 3: jobrpc.v1.PrepareEmailResponse.settled:type_name -> jobrpc.v1.EmailSettled
+	11, // 4: jobrpc.v1.EmailMessage.headers:type_name -> jobrpc.v1.EmailMessage.HeadersEntry
+	13, // 5: jobrpc.v1.RecordEmailOutcomeRequest.args:type_name -> jobs.v1.SendEmailArgs
+	0,  // 6: jobrpc.v1.RecordEmailOutcomeRequest.outcome:type_name -> jobrpc.v1.EmailOutcome
+	7,  // 7: jobrpc.v1.RecordEmailOutcomeRequest.message:type_name -> jobrpc.v1.EmailMessage
+	1,  // 8: jobrpc.v1.CredentialService.Lease:input_type -> jobrpc.v1.LeaseRequest
+	3,  // 9: jobrpc.v1.MaintenanceService.Run:input_type -> jobrpc.v1.RunRequest
+	5,  // 10: jobrpc.v1.EmailJobService.PrepareEmail:input_type -> jobrpc.v1.PrepareEmailRequest
+	9,  // 11: jobrpc.v1.EmailJobService.RecordEmailOutcome:input_type -> jobrpc.v1.RecordEmailOutcomeRequest
+	2,  // 12: jobrpc.v1.CredentialService.Lease:output_type -> jobrpc.v1.LeaseResponse
+	4,  // 13: jobrpc.v1.MaintenanceService.Run:output_type -> jobrpc.v1.RunResponse
+	6,  // 14: jobrpc.v1.EmailJobService.PrepareEmail:output_type -> jobrpc.v1.PrepareEmailResponse
+	10, // 15: jobrpc.v1.EmailJobService.RecordEmailOutcome:output_type -> jobrpc.v1.RecordEmailOutcomeResponse
+	12, // [12:16] is the sub-list for method output_type
+	8,  // [8:12] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_jobrpc_v1_jobrpc_proto_init() }
@@ -266,18 +771,23 @@ func file_jobrpc_v1_jobrpc_proto_init() {
 	if File_jobrpc_v1_jobrpc_proto != nil {
 		return
 	}
+	file_jobrpc_v1_jobrpc_proto_msgTypes[5].OneofWrappers = []any{
+		(*PrepareEmailResponse_Send)(nil),
+		(*PrepareEmailResponse_Settled)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_jobrpc_v1_jobrpc_proto_rawDesc), len(file_jobrpc_v1_jobrpc_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   4,
+			NumEnums:      1,
+			NumMessages:   11,
 			NumExtensions: 0,
-			NumServices:   2,
+			NumServices:   3,
 		},
 		GoTypes:           file_jobrpc_v1_jobrpc_proto_goTypes,
 		DependencyIndexes: file_jobrpc_v1_jobrpc_proto_depIdxs,
+		EnumInfos:         file_jobrpc_v1_jobrpc_proto_enumTypes,
 		MessageInfos:      file_jobrpc_v1_jobrpc_proto_msgTypes,
 	}.Build()
 	File_jobrpc_v1_jobrpc_proto = out.File

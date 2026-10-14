@@ -249,3 +249,169 @@ var MaintenanceService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "jobrpc/v1/jobrpc.proto",
 }
+
+const (
+	EmailJobService_PrepareEmail_FullMethodName       = "/jobrpc.v1.EmailJobService/PrepareEmail"
+	EmailJobService_RecordEmailOutcome_FullMethodName = "/jobrpc.v1.EmailJobService/RecordEmailOutcome"
+)
+
+// EmailJobServiceClient is the client API for EmailJobService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// EmailJobService splits a send_email job at the provider call. ogen does
+// everything that needs its data (tenant status, recipient, suppression,
+// template, unsubscribe link, rendering) and records the outcome; river-service
+// sends the rendered message through Resend with a leased key. Templates and
+// the link-signing secret never leave ogen.
+type EmailJobServiceClient interface {
+	// PrepareEmail returns the rendered message to send, or reports that ogen
+	// has already settled the job (user gone, tenant inactive, suppressed,
+	// template missing, render failure) and logged it. UNAVAILABLE means a
+	// transient lookup failure: retry later.
+	PrepareEmail(ctx context.Context, in *PrepareEmailRequest, opts ...grpc.CallOption) (*PrepareEmailResponse, error)
+	// RecordEmailOutcome logs the result of a send river-service made (or
+	// skipped because no Resend key is set). Idempotent per idempotency key: a
+	// repeated call after a retried job records nothing new.
+	RecordEmailOutcome(ctx context.Context, in *RecordEmailOutcomeRequest, opts ...grpc.CallOption) (*RecordEmailOutcomeResponse, error)
+}
+
+type emailJobServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewEmailJobServiceClient(cc grpc.ClientConnInterface) EmailJobServiceClient {
+	return &emailJobServiceClient{cc}
+}
+
+func (c *emailJobServiceClient) PrepareEmail(ctx context.Context, in *PrepareEmailRequest, opts ...grpc.CallOption) (*PrepareEmailResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PrepareEmailResponse)
+	err := c.cc.Invoke(ctx, EmailJobService_PrepareEmail_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *emailJobServiceClient) RecordEmailOutcome(ctx context.Context, in *RecordEmailOutcomeRequest, opts ...grpc.CallOption) (*RecordEmailOutcomeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RecordEmailOutcomeResponse)
+	err := c.cc.Invoke(ctx, EmailJobService_RecordEmailOutcome_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// EmailJobServiceServer is the server API for EmailJobService service.
+// All implementations must embed UnimplementedEmailJobServiceServer
+// for forward compatibility.
+//
+// EmailJobService splits a send_email job at the provider call. ogen does
+// everything that needs its data (tenant status, recipient, suppression,
+// template, unsubscribe link, rendering) and records the outcome; river-service
+// sends the rendered message through Resend with a leased key. Templates and
+// the link-signing secret never leave ogen.
+type EmailJobServiceServer interface {
+	// PrepareEmail returns the rendered message to send, or reports that ogen
+	// has already settled the job (user gone, tenant inactive, suppressed,
+	// template missing, render failure) and logged it. UNAVAILABLE means a
+	// transient lookup failure: retry later.
+	PrepareEmail(context.Context, *PrepareEmailRequest) (*PrepareEmailResponse, error)
+	// RecordEmailOutcome logs the result of a send river-service made (or
+	// skipped because no Resend key is set). Idempotent per idempotency key: a
+	// repeated call after a retried job records nothing new.
+	RecordEmailOutcome(context.Context, *RecordEmailOutcomeRequest) (*RecordEmailOutcomeResponse, error)
+	mustEmbedUnimplementedEmailJobServiceServer()
+}
+
+// UnimplementedEmailJobServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedEmailJobServiceServer struct{}
+
+func (UnimplementedEmailJobServiceServer) PrepareEmail(context.Context, *PrepareEmailRequest) (*PrepareEmailResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PrepareEmail not implemented")
+}
+func (UnimplementedEmailJobServiceServer) RecordEmailOutcome(context.Context, *RecordEmailOutcomeRequest) (*RecordEmailOutcomeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RecordEmailOutcome not implemented")
+}
+func (UnimplementedEmailJobServiceServer) mustEmbedUnimplementedEmailJobServiceServer() {}
+func (UnimplementedEmailJobServiceServer) testEmbeddedByValue()                         {}
+
+// UnsafeEmailJobServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to EmailJobServiceServer will
+// result in compilation errors.
+type UnsafeEmailJobServiceServer interface {
+	mustEmbedUnimplementedEmailJobServiceServer()
+}
+
+func RegisterEmailJobServiceServer(s grpc.ServiceRegistrar, srv EmailJobServiceServer) {
+	// If the following call panics, it indicates UnimplementedEmailJobServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&EmailJobService_ServiceDesc, srv)
+}
+
+func _EmailJobService_PrepareEmail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PrepareEmailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EmailJobServiceServer).PrepareEmail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EmailJobService_PrepareEmail_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EmailJobServiceServer).PrepareEmail(ctx, req.(*PrepareEmailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EmailJobService_RecordEmailOutcome_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RecordEmailOutcomeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EmailJobServiceServer).RecordEmailOutcome(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EmailJobService_RecordEmailOutcome_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EmailJobServiceServer).RecordEmailOutcome(ctx, req.(*RecordEmailOutcomeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// EmailJobService_ServiceDesc is the grpc.ServiceDesc for EmailJobService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var EmailJobService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "jobrpc.v1.EmailJobService",
+	HandlerType: (*EmailJobServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "PrepareEmail",
+			Handler:    _EmailJobService_PrepareEmail_Handler,
+		},
+		{
+			MethodName: "RecordEmailOutcome",
+			Handler:    _EmailJobService_RecordEmailOutcome_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "jobrpc/v1/jobrpc.proto",
+}

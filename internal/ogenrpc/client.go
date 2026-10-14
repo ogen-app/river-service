@@ -29,6 +29,7 @@ type Client struct {
 	conn        *grpc.ClientConn
 	Maintenance jobrpcv1.MaintenanceServiceClient
 	Credentials jobrpcv1.CredentialServiceClient
+	Email       jobrpcv1.EmailJobServiceClient
 }
 
 // New dials ogen at addr with the bearer token on every call. Calls carry the
@@ -48,6 +49,7 @@ func New(addr, token string) (*Client, error) {
 		conn:        conn,
 		Maintenance: jobrpcv1.NewMaintenanceServiceClient(conn),
 		Credentials: jobrpcv1.NewCredentialServiceClient(conn),
+		Email:       jobrpcv1.NewEmailJobServiceClient(conn),
 	}, nil
 }
 
