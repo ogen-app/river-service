@@ -88,6 +88,11 @@ func (w *stepWorker[A]) Work(ctx context.Context, job *river.Job[A]) error {
 			result = w.actions.Transfer(ctx, next.Transfer)
 		case *jobrpcv1.StepResponse_Sidecar:
 			result = w.actions.Sidecar(ctx, next.Sidecar)
+		case *jobrpcv1.StepResponse_Wait:
+			if err := sleep(ctx, next.Wait.AsDuration()); err != nil {
+				return err
+			}
+			result = nil
 		case *jobrpcv1.StepResponse_Retry:
 			if after := next.Retry.GetAfter().AsDuration(); after > 0 {
 				return river.JobSnooze(after)
@@ -100,6 +105,20 @@ func (w *stepWorker[A]) Work(ctx context.Context, job *river.Job[A]) error {
 		}
 	}
 	return fmt.Errorf("%s: no result after %d steps", job.Kind, maxSteps)
+}
+
+// sleep waits d, or until ctx ends. A stop that cuts the wait leaves the job
+// to the drain middleware, which snoozes it; the next run picks up the work
+// ogen is still doing.
+func sleep(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
 }
 
 // finish enqueues the child jobs and cancels the queued jobs ogen asked for,

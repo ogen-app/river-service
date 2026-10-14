@@ -87,6 +87,7 @@ func TestStepWorkerRunsTheLoop(t *testing.T) {
 	steps := &scriptedSteps{script: []*jobrpcv1.StepResponse{
 		call("/profiles"),
 		{State: []byte("t"), Next: &jobrpcv1.StepResponse_Transfer{Transfer: &jobrpcv1.MediaTransfer{SourceUrl: "s", UploadUrl: "u"}}},
+		{State: []byte("w"), Next: &jobrpcv1.StepResponse_Wait{Wait: durationpb.New(time.Millisecond)}},
 		{State: []byte("s"), Next: &jobrpcv1.StepResponse_Sidecar{Sidecar: &jobrpcv1.SidecarCall{Service: "pdf", Method: "/pdf.v1.PdfService/Parse"}}},
 		doneWith("bootstrapped"),
 	}}
@@ -98,8 +99,11 @@ func TestStepWorkerRunsTheLoop(t *testing.T) {
 	if len(acts.calls) != 1 || len(acts.transfers) != 1 || len(acts.sidecars) != 1 {
 		t.Fatalf("calls %v transfers %v sidecars %v", acts.calls, acts.transfers, acts.sidecars)
 	}
-	if len(steps.requests) != 4 {
-		t.Fatalf("steps = %d, want 4", len(steps.requests))
+	if len(steps.requests) != 5 {
+		t.Fatalf("steps = %d, want 5", len(steps.requests))
+	}
+	if r := steps.requests[3]; string(r.GetState()) != "w" || r.GetResult() != nil {
+		t.Errorf("after a wait: state %q result %v, want the same state and no result", r.GetState(), r.GetResult())
 	}
 	if r := steps.requests[0]; r.GetAttempt() != 1 || r.GetMaxAttempts() != 5 {
 		t.Errorf("attempt %d of %d, want 1 of 5", r.GetAttempt(), r.GetMaxAttempts())

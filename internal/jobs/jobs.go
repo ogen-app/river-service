@@ -35,6 +35,7 @@ func Registry(cfg *config.Config, ogen *ogenrpc.Client) *queue.Registry {
 	registerPublishing(reg, steps)
 	registerPublishingSweeps(reg, cfg, steps, ogen.Maintenance)
 	registerIngestion(reg, steps)
+	registerAnalysis(reg, cfg, steps, ogen.Maintenance)
 	return reg
 }
 
