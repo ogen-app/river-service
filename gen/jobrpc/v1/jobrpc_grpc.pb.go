@@ -417,123 +417,125 @@ var EmailJobService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	ZernioJobService_Step_FullMethodName = "/jobrpc.v1.ZernioJobService/Step"
+	JobStepService_Step_FullMethodName = "/jobrpc.v1.JobStepService/Step"
 )
 
-// ZernioJobServiceClient is the client API for ZernioJobService service.
+// JobStepServiceClient is the client API for JobStepService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// ZernioJobService drives a Zernio job as a short loop between the two
-// services. ogen decides: it reads and writes its own data and builds each
-// Zernio request. river-service acts: it sends the request with a leased Zernio
-// key and hands the raw response back. A job calls Step with no state and no
-// result, then once per Zernio call it was asked to make, until ogen answers
-// done or retry.
+// JobStepService drives a job river-service runs step by step: the Zernio
+// jobs, ingestion and the rest that need both ogen's data and an outside
+// call. ogen decides: it reads and writes its own data and plans each outside
+// call. river-service acts: it makes the call with a credential leased from
+// ogen, or streams the file, and hands the raw result back. A job calls Step
+// with no state and no result, then once per action it was asked to take,
+// until ogen answers done or retry.
 //
 // The loop holds no durable state: if it is cut short (a deploy, a crash), the
 // job retries from the start, and every flow is written to converge on a
 // repeat.
-type ZernioJobServiceClient interface {
+type JobStepServiceClient interface {
 	Step(ctx context.Context, in *StepRequest, opts ...grpc.CallOption) (*StepResponse, error)
 }
 
-type zernioJobServiceClient struct {
+type jobStepServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewZernioJobServiceClient(cc grpc.ClientConnInterface) ZernioJobServiceClient {
-	return &zernioJobServiceClient{cc}
+func NewJobStepServiceClient(cc grpc.ClientConnInterface) JobStepServiceClient {
+	return &jobStepServiceClient{cc}
 }
 
-func (c *zernioJobServiceClient) Step(ctx context.Context, in *StepRequest, opts ...grpc.CallOption) (*StepResponse, error) {
+func (c *jobStepServiceClient) Step(ctx context.Context, in *StepRequest, opts ...grpc.CallOption) (*StepResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StepResponse)
-	err := c.cc.Invoke(ctx, ZernioJobService_Step_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, JobStepService_Step_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// ZernioJobServiceServer is the server API for ZernioJobService service.
-// All implementations must embed UnimplementedZernioJobServiceServer
+// JobStepServiceServer is the server API for JobStepService service.
+// All implementations must embed UnimplementedJobStepServiceServer
 // for forward compatibility.
 //
-// ZernioJobService drives a Zernio job as a short loop between the two
-// services. ogen decides: it reads and writes its own data and builds each
-// Zernio request. river-service acts: it sends the request with a leased Zernio
-// key and hands the raw response back. A job calls Step with no state and no
-// result, then once per Zernio call it was asked to make, until ogen answers
-// done or retry.
+// JobStepService drives a job river-service runs step by step: the Zernio
+// jobs, ingestion and the rest that need both ogen's data and an outside
+// call. ogen decides: it reads and writes its own data and plans each outside
+// call. river-service acts: it makes the call with a credential leased from
+// ogen, or streams the file, and hands the raw result back. A job calls Step
+// with no state and no result, then once per action it was asked to take,
+// until ogen answers done or retry.
 //
 // The loop holds no durable state: if it is cut short (a deploy, a crash), the
 // job retries from the start, and every flow is written to converge on a
 // repeat.
-type ZernioJobServiceServer interface {
+type JobStepServiceServer interface {
 	Step(context.Context, *StepRequest) (*StepResponse, error)
-	mustEmbedUnimplementedZernioJobServiceServer()
+	mustEmbedUnimplementedJobStepServiceServer()
 }
 
-// UnimplementedZernioJobServiceServer must be embedded to have
+// UnimplementedJobStepServiceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedZernioJobServiceServer struct{}
+type UnimplementedJobStepServiceServer struct{}
 
-func (UnimplementedZernioJobServiceServer) Step(context.Context, *StepRequest) (*StepResponse, error) {
+func (UnimplementedJobStepServiceServer) Step(context.Context, *StepRequest) (*StepResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Step not implemented")
 }
-func (UnimplementedZernioJobServiceServer) mustEmbedUnimplementedZernioJobServiceServer() {}
-func (UnimplementedZernioJobServiceServer) testEmbeddedByValue()                          {}
+func (UnimplementedJobStepServiceServer) mustEmbedUnimplementedJobStepServiceServer() {}
+func (UnimplementedJobStepServiceServer) testEmbeddedByValue()                        {}
 
-// UnsafeZernioJobServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to ZernioJobServiceServer will
+// UnsafeJobStepServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to JobStepServiceServer will
 // result in compilation errors.
-type UnsafeZernioJobServiceServer interface {
-	mustEmbedUnimplementedZernioJobServiceServer()
+type UnsafeJobStepServiceServer interface {
+	mustEmbedUnimplementedJobStepServiceServer()
 }
 
-func RegisterZernioJobServiceServer(s grpc.ServiceRegistrar, srv ZernioJobServiceServer) {
-	// If the following call panics, it indicates UnimplementedZernioJobServiceServer was
+func RegisterJobStepServiceServer(s grpc.ServiceRegistrar, srv JobStepServiceServer) {
+	// If the following call panics, it indicates UnimplementedJobStepServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&ZernioJobService_ServiceDesc, srv)
+	s.RegisterService(&JobStepService_ServiceDesc, srv)
 }
 
-func _ZernioJobService_Step_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _JobStepService_Step_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StepRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZernioJobServiceServer).Step(ctx, in)
+		return srv.(JobStepServiceServer).Step(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ZernioJobService_Step_FullMethodName,
+		FullMethod: JobStepService_Step_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZernioJobServiceServer).Step(ctx, req.(*StepRequest))
+		return srv.(JobStepServiceServer).Step(ctx, req.(*StepRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// ZernioJobService_ServiceDesc is the grpc.ServiceDesc for ZernioJobService service.
+// JobStepService_ServiceDesc is the grpc.ServiceDesc for JobStepService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var ZernioJobService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "jobrpc.v1.ZernioJobService",
-	HandlerType: (*ZernioJobServiceServer)(nil),
+var JobStepService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "jobrpc.v1.JobStepService",
+	HandlerType: (*JobStepServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "Step",
-			Handler:    _ZernioJobService_Step_Handler,
+			Handler:    _JobStepService_Step_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

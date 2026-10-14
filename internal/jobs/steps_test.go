@@ -49,51 +49,56 @@ func (s *scriptedSteps) Step(_ context.Context, in *jobrpcv1.StepRequest, _ ...g
 	return resp, nil
 }
 
-type recordingSender struct {
-	calls     []*jobrpcv1.ZernioCall
+type recordingActions struct {
+	calls     []*jobrpcv1.HttpCall
 	transfers []*jobrpcv1.MediaTransfer
-	keys      []string
+	sidecars  []*jobrpcv1.SidecarCall
 }
 
-func (r *recordingSender) Do(_ context.Context, key string, c *jobrpcv1.ZernioCall) *jobrpcv1.ZernioResult {
-	r.keys = append(r.keys, key)
+func (r *recordingActions) HTTP(_ context.Context, c *jobrpcv1.HttpCall) *jobrpcv1.StepResult {
 	r.calls = append(r.calls, c)
-	return &jobrpcv1.ZernioResult{Status: 200, Body: []byte(`{"ok":true}`)}
+	return &jobrpcv1.StepResult{Status: 200, Body: []byte(`{"ok":true}`)}
 }
 
-func (r *recordingSender) Transfer(_ context.Context, t *jobrpcv1.MediaTransfer) *jobrpcv1.ZernioResult {
+func (r *recordingActions) Transfer(_ context.Context, t *jobrpcv1.MediaTransfer) *jobrpcv1.StepResult {
 	r.transfers = append(r.transfers, t)
-	return &jobrpcv1.ZernioResult{Status: 200}
+	return &jobrpcv1.StepResult{Status: 200}
+}
+
+func (r *recordingActions) Sidecar(_ context.Context, c *jobrpcv1.SidecarCall) *jobrpcv1.StepResult {
+	r.sidecars = append(r.sidecars, c)
+	return &jobrpcv1.StepResult{Status: 0, Body: []byte{1}}
 }
 
 func call(path string) *jobrpcv1.StepResponse {
-	return &jobrpcv1.StepResponse{State: []byte(path), Next: &jobrpcv1.StepResponse_Call{Call: &jobrpcv1.ZernioCall{Method: "GET", Path: path}}}
+	return &jobrpcv1.StepResponse{State: []byte(path), Next: &jobrpcv1.StepResponse_Http{Http: &jobrpcv1.HttpCall{Upstream: "zernio", Method: "GET", Path: path}}}
 }
 
 func doneWith(outcome string) *jobrpcv1.StepResponse {
-	return &jobrpcv1.StepResponse{Next: &jobrpcv1.StepResponse_Done{Done: &jobrpcv1.ZernioStepDone{Outcome: outcome}}}
+	return &jobrpcv1.StepResponse{Next: &jobrpcv1.StepResponse_Done{Done: &jobrpcv1.StepDone{Outcome: outcome}}}
 }
 
 func bootstrapJob() *river.Job[BootstrapZernioProfileArgs] {
 	return &river.Job[BootstrapZernioProfileArgs]{JobRow: &rivertype.JobRow{Kind: "bootstrap_zernio_profile", Attempt: 1, MaxAttempts: 5}, Args: BootstrapZernioProfileArgs{TenantID: "t1"}}
 }
 
-func TestZernioWorkerRunsTheLoop(t *testing.T) {
+func TestStepWorkerRunsTheLoop(t *testing.T) {
 	steps := &scriptedSteps{script: []*jobrpcv1.StepResponse{
 		call("/profiles"),
 		{State: []byte("t"), Next: &jobrpcv1.StepResponse_Transfer{Transfer: &jobrpcv1.MediaTransfer{SourceUrl: "s", UploadUrl: "u"}}},
+		{State: []byte("s"), Next: &jobrpcv1.StepResponse_Sidecar{Sidecar: &jobrpcv1.SidecarCall{Service: "pdf", Method: "/pdf.v1.PdfService/Parse"}}},
 		doneWith("bootstrapped"),
 	}}
-	sender := &recordingSender{}
-	w := newZernioWorker[BootstrapZernioProfileArgs](zernioDeps{ogen: steps, keys: fakeKeys{key: "zk"}, sender: sender, children: &childKinds{}})
+	acts := &recordingActions{}
+	w := newStepWorker[BootstrapZernioProfileArgs](stepDeps{ogen: steps, actions: acts, children: newChildKinds()}, 0)
 	if err := w.Work(t.Context(), bootstrapJob()); err != nil {
 		t.Fatal(err)
 	}
-	if len(sender.calls) != 1 || sender.keys[0] != "zk" || len(sender.transfers) != 1 {
-		t.Fatalf("calls %v transfers %v", sender.calls, sender.transfers)
+	if len(acts.calls) != 1 || len(acts.transfers) != 1 || len(acts.sidecars) != 1 {
+		t.Fatalf("calls %v transfers %v sidecars %v", acts.calls, acts.transfers, acts.sidecars)
 	}
-	if len(steps.requests) != 3 {
-		t.Fatalf("steps = %d, want 3", len(steps.requests))
+	if len(steps.requests) != 4 {
+		t.Fatalf("steps = %d, want 4", len(steps.requests))
 	}
 	first, second := steps.requests[0], steps.requests[1]
 	var args BootstrapZernioProfileArgs
@@ -105,24 +110,23 @@ func TestZernioWorkerRunsTheLoop(t *testing.T) {
 	}
 }
 
-func TestZernioWorkerOutcomes(t *testing.T) {
+func TestStepWorkerOutcomes(t *testing.T) {
 	tests := []struct {
 		name       string
 		steps      *scriptedSteps
-		keys       fakeKeys
 		wantSnooze bool
 		wantErr    bool
 	}{
-		{name: "no zernio key", steps: &scriptedSteps{}, keys: fakeKeys{}},
-		{name: "ogen busy", steps: &scriptedSteps{err: status.Error(codes.ResourceExhausted, "x")}, keys: fakeKeys{key: "zk"}, wantSnooze: true},
-		{name: "ogen without the kind yet", steps: &scriptedSteps{err: status.Error(codes.Unimplemented, "x")}, keys: fakeKeys{key: "zk"}, wantSnooze: true},
-		{name: "retry later", steps: &scriptedSteps{script: []*jobrpcv1.StepResponse{{Next: &jobrpcv1.StepResponse_Retry{Retry: &jobrpcv1.ZernioStepRetry{Reason: "zernio 503"}}}}}, keys: fakeKeys{key: "zk"}, wantErr: true},
-		{name: "retry after", steps: &scriptedSteps{script: []*jobrpcv1.StepResponse{{Next: &jobrpcv1.StepResponse_Retry{Retry: &jobrpcv1.ZernioStepRetry{After: durationpb.New(time.Minute)}}}}}, keys: fakeKeys{key: "zk"}, wantSnooze: true},
-		{name: "endless loop", steps: &scriptedSteps{byKind: func(*jobrpcv1.StepRequest) *jobrpcv1.StepResponse { return call("/again") }}, keys: fakeKeys{key: "zk"}, wantErr: true},
+		{name: "done", steps: &scriptedSteps{script: []*jobrpcv1.StepResponse{doneWith("ok")}}},
+		{name: "ogen busy", steps: &scriptedSteps{err: status.Error(codes.ResourceExhausted, "x")}, wantSnooze: true},
+		{name: "ogen without the kind yet", steps: &scriptedSteps{err: status.Error(codes.Unimplemented, "x")}, wantSnooze: true},
+		{name: "retry later", steps: &scriptedSteps{script: []*jobrpcv1.StepResponse{{Next: &jobrpcv1.StepResponse_Retry{Retry: &jobrpcv1.StepRetry{Reason: "zernio 503"}}}}}, wantErr: true},
+		{name: "retry after", steps: &scriptedSteps{script: []*jobrpcv1.StepResponse{{Next: &jobrpcv1.StepResponse_Retry{Retry: &jobrpcv1.StepRetry{After: durationpb.New(time.Minute)}}}}}, wantSnooze: true},
+		{name: "endless loop", steps: &scriptedSteps{byKind: func(*jobrpcv1.StepRequest) *jobrpcv1.StepResponse { return call("/again") }}, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := newZernioWorker[BootstrapZernioProfileArgs](zernioDeps{ogen: tt.steps, keys: tt.keys, sender: &recordingSender{}, children: &childKinds{}})
+			w := newStepWorker[BootstrapZernioProfileArgs](stepDeps{ogen: tt.steps, actions: &recordingActions{}, children: newChildKinds()}, 0)
 			err := w.Work(t.Context(), bootstrapJob())
 			_, snoozed := errors.AsType[*rivertype.JobSnoozeError](err)
 			if snoozed != tt.wantSnooze || (!tt.wantSnooze && (err != nil) != tt.wantErr) {
@@ -170,7 +174,7 @@ func TestSweepFansOutIntoTenantJobs(t *testing.T) {
 
 	steps := &scriptedSteps{byKind: func(in *jobrpcv1.StepRequest) *jobrpcv1.StepResponse {
 		if in.GetKind() == "detect_expiring_connections" {
-			return &jobrpcv1.StepResponse{Next: &jobrpcv1.StepResponse_Done{Done: &jobrpcv1.ZernioStepDone{Enqueue: []*jobrpcv1.ChildJob{
+			return &jobrpcv1.StepResponse{Next: &jobrpcv1.StepResponse_Done{Done: &jobrpcv1.StepDone{Enqueue: []*jobrpcv1.ChildJob{
 				{Kind: "detect_expiring_connections_tenant", Args: []byte(`{"tenant_id":"t1","profile_id":"p1"}`)},
 				{Kind: "detect_expiring_connections_tenant", Args: []byte(`{"tenant_id":"t2","profile_id":"p2"}`)},
 			}}}}
@@ -182,8 +186,7 @@ func TestSweepFansOutIntoTenantJobs(t *testing.T) {
 		ShutdownTimeout: time.Minute, RescueStuckJobsAfter: time.Hour, ZernioHealthCheckInterval: time.Hour,
 	}
 	reg := queue.NewRegistry()
-	children := &childKinds{build: map[string]func([]byte) (river.JobArgs, error){}}
-	registerZernioLifecycle(reg, cfg, steps, &fakeMaintenance{}, fakeKeys{key: "zk"}, &recordingSender{}, children)
+	registerZernioLifecycle(reg, cfg, stepDeps{ogen: steps, actions: &recordingActions{}, children: newChildKinds()}, &fakeMaintenance{})
 	client, err := queue.NewClient(pool, cfg, reg, nil)
 	if err != nil {
 		t.Fatal(err)

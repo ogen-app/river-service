@@ -95,6 +95,26 @@ type Config struct {
 	// turns it off.
 	ZernioHealthCheckInterval time.Duration `envconfig:"ZERNIO_HEALTH_CHECK_INTERVAL" default:"6h"`
 
+	// Gemini's API (embeddings) and Firecrawl's (URL scrapes). Their keys are
+	// leased from ogen.
+	GeminiBaseURL        string        `envconfig:"GEMINI_BASE_URL" default:"https://generativelanguage.googleapis.com"`
+	GeminiHTTPTimeout    time.Duration `envconfig:"GEMINI_HTTP_TIMEOUT" default:"60s"`
+	FirecrawlBaseURL     string        `envconfig:"FIRECRAWL_BASE_URL" default:"https://api.firecrawl.dev"`
+	FirecrawlHTTPTimeout time.Duration `envconfig:"FIRECRAWL_HTTP_TIMEOUT" default:"90s"`
+	// FetchTimeout bounds a fetch of outside content (an image on a scraped
+	// page).
+	FetchTimeout time.Duration `envconfig:"FETCH_TIMEOUT" default:"30s"`
+
+	// Sidecar addresses. A sidecar left unset makes the jobs that need it
+	// behave as they do in ogen without it.
+	PDFServiceAddr       string `envconfig:"PDF_SERVICE_ADDR"`
+	DocumentsServiceAddr string `envconfig:"DOCUMENTS_SERVICE_ADDR"`
+	ImageServiceAddr     string `envconfig:"IMAGE_SERVICE_ADDR"`
+	AudioServiceAddr     string `envconfig:"AUDIO_SERVICE_ADDR"`
+	// SidecarMaxRecvBytes bounds a sidecar response (parsed documents and
+	// thumbnails can be large).
+	SidecarMaxRecvBytes int `envconfig:"SIDECAR_MAX_RECV_BYTES" default:"134217728"`
+
 	// Harbor's new-tenant webhook. An empty URL turns the notification off. Its
 	// signing key is leased from ogen (harbor_webhook_secret).
 	HarborWebhookURL string `envconfig:"HARBOR_WEBHOOK_URL"`

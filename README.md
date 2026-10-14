@@ -30,16 +30,21 @@ is refused by `Enqueue` with `UNIMPLEMENTED`, and ogen keeps it in its outbox.
 | Housekeeping | `cleanup_post_logs`, `cleanup_notifications`, `cleanup_login_security`, `cleanup_plugin_pairings`, `sweep_pending_uploads` | Scheduled here; each pass runs in ogen via `MaintenanceService.Run` |
 | Email | `send_email`, `cleanup_email_logs` | ogen prepares and renders (`EmailJobService.PrepareEmail`), river-service sends through Resend with a leased key, ogen records the outcome (`RecordEmailOutcome`). The log sweep runs in ogen. |
 | Harbor webhook | `notify_harbor_tenant_registered` | Runs here; the payload is just the tenant id, signed with a key leased from ogen |
-| Zernio lifecycle | `bootstrap_zernio_profile`, `teardown_zernio_profile`, `detect_expiring_connections` (fans out into `detect_expiring_connections_tenant`), `cleanup_zernio_connect_sessions` | Zernio calls are made here with a key leased from ogen; ogen plans each one and applies the result (`ZernioJobService.Step`). The connect-session sweep runs in ogen. |
+| Zernio lifecycle | `bootstrap_zernio_profile`, `teardown_zernio_profile`, `detect_expiring_connections` (fans out into `detect_expiring_connections_tenant`), `cleanup_zernio_connect_sessions` | Step-run jobs (below): Zernio calls go out from here with a key leased from ogen, and ogen plans each one and applies the result (`JobStepService.Step`). The connect-session sweep runs in ogen. |
 
-### How a Zernio job runs
+### How a step-run job runs
 
-Every Zernio kind runs on one generic worker:
-1. It asks ogen for the next step (`Step`).
-2. ogen answers with one of four things: a Zernio request to send, a media transfer to stream, done (optionally with child jobs to enqueue), or retry.
-3. The worker carries it out and passes the raw result to the next `Step`.
+Jobs that call outside services run on one generic worker (`internal/jobs/steps.go`):
+1. It asks ogen for the next step (`JobStepService.Step`).
+2. ogen answers with one of five things:
+   - an HTTP call, either to a named API (`zernio`, `gemini`, `firecrawl`, sent with that API's leased key) or to an absolute URL fetched with no credentials through the SSRF guard
+   - a sidecar gRPC call, unary or client-streamed from a stored file
+   - a media transfer from storage to an upload URL
+   - done, optionally with child jobs to enqueue
+   - retry, now or after a delay
+3. The worker carries it out (`internal/actions`) and passes the raw result to the next `Step`. A call to an API whose key isn't set in ogen is not made; the result says `credential_missing`, and ogen decides what that means.
 
-ogen builds every Zernio request and decodes every response, so this service holds no Zernio domain logic. A job cut short (a deploy, a crash) retries from the start, and every flow converges on a repeat.
+ogen builds every request and decodes every response, so this service holds no domain logic: a new step-run kind is an args type plus one `newStepWorker` registration. A job cut short (a deploy, a crash) retries from the start, and every flow converges on a repeat.
 
 A workspace teardown holds a short lease in ogen. While it's held, a restore of that workspace is refused, and each step renews the lease, so a stalled teardown frees the workspace within two minutes.
 
@@ -83,7 +88,12 @@ so deploy river-service first, then list the family there.
 | `GRPC_AUTH_TOKEN` | required with `GRPC_ADDR` | Bearer token ogen sends (ogen's `RIVER_SERVICE_AUTH_TOKEN`) |
 | `OGEN_GRPC_ADDR` / `OGEN_RPC_AUTH_TOKEN` | empty | ogen's job-RPC listener (e.g. `dns:///ogen.railway.internal:9093`) and the token it expects (ogen's `RIVER_RPC_AUTH_TOKEN`). Without it no job kinds are registered. |
 | `NOTIFICATIONS_CLEANUP_EVERY` / `PENDING_UPLOAD_SWEEP_INTERVAL` | `24h` / `1h` | Cadence of those two sweeps; `0` turns one off. Post logs run hourly, login security daily and plugin pairings every 15 minutes. |
-| `ZERNIO_BASE_URL` / `ZERNIO_HTTP_TIMEOUT` | `https://zernio.com/api/v1` / `15s` | Zernio's API and per-call timeout. The key is leased from ogen; with none set, Zernio jobs end without doing anything. |
+| `ZERNIO_BASE_URL` / `ZERNIO_HTTP_TIMEOUT` | `https://zernio.com/api/v1` / `15s` | Zernio's API and per-call timeout. The key is leased from ogen; with none set, ogen ends Zernio jobs without doing anything. |
+| `GEMINI_BASE_URL` / `GEMINI_HTTP_TIMEOUT` | `https://generativelanguage.googleapis.com` / `60s` | Gemini's API (embeddings) and per-call timeout. Key leased from ogen. |
+| `FIRECRAWL_BASE_URL` / `FIRECRAWL_HTTP_TIMEOUT` | `https://api.firecrawl.dev` / `90s` | Firecrawl's API (URL scrapes) and per-call timeout. Key leased from ogen. |
+| `FETCH_TIMEOUT` | `30s` | Fetch of outside content (an image on a scraped page). These fetches never reach private, shared (100.64.0.0/10), loopback or link-local addresses. |
+| `PDF_SERVICE_ADDR` / `DOCUMENTS_SERVICE_ADDR` / `IMAGE_SERVICE_ADDR` / `AUDIO_SERVICE_ADDR` | empty | Sidecar gRPC addresses, set on the heavy service. A sidecar left unset behaves as it does in ogen without it. |
+| `SIDECAR_MAX_RECV_BYTES` | `134217728` (128 MiB) | Largest sidecar response accepted |
 | `ZERNIO_HEALTH_CHECK_INTERVAL` | `6h` | Connection-health sweep cadence; `0` turns it off. |
 | `EMAIL_BASE_URL` / `EMAIL_HTTP_TIMEOUT` | `https://api.resend.com` / `15s` | Resend endpoint and per-call timeout. The API key is leased from ogen; with no key set in ogen, sends are logged as skipped. |
 | `HARBOR_WEBHOOK_URL` | empty | Harbor's new-tenant webhook. Empty turns it off. The HMAC key (`X-Ogen-Signature`) is leased from ogen's `HARBOR_WEBHOOK_SECRET`; with none set the webhook goes out unsigned. |
