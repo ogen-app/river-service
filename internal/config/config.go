@@ -88,6 +88,13 @@ type Config struct {
 	EmailBaseURL     string        `envconfig:"EMAIL_BASE_URL" default:"https://api.resend.com"`
 	EmailHTTPTimeout time.Duration `envconfig:"EMAIL_HTTP_TIMEOUT" default:"15s"`
 
+	// Zernio's API base and per-call timeout. The key is leased from ogen.
+	ZernioBaseURL     string        `envconfig:"ZERNIO_BASE_URL" default:"https://zernio.com/api/v1"`
+	ZernioHTTPTimeout time.Duration `envconfig:"ZERNIO_HTTP_TIMEOUT" default:"15s"`
+	// ZernioHealthCheckInterval is the connection-health sweep's cadence; 0
+	// turns it off.
+	ZernioHealthCheckInterval time.Duration `envconfig:"ZERNIO_HEALTH_CHECK_INTERVAL" default:"6h"`
+
 	// Harbor's new-tenant webhook. An empty URL turns the notification off. Its
 	// signing key is leased from ogen (harbor_webhook_secret).
 	HarborWebhookURL string `envconfig:"HARBOR_WEBHOOK_URL"`

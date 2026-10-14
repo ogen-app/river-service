@@ -8,6 +8,8 @@
 package jobs
 
 import (
+	"github.com/riverqueue/river"
+
 	"github.com/ogen-app/river-service/internal/config"
 	"github.com/ogen-app/river-service/internal/credentials"
 	"github.com/ogen-app/river-service/internal/ogenrpc"
@@ -26,5 +28,7 @@ func Registry(cfg *config.Config, ogen *ogenrpc.Client) *queue.Registry {
 	keys := credentials.NewCache(ogen.Credentials)
 	registerEmail(reg, ogen.Email, ogen.Maintenance, keys, resend.New(cfg.EmailBaseURL, cfg.EmailHTTPTimeout))
 	registerHarbor(reg, cfg.HarborWebhookURL, keys)
+	children := &childKinds{build: map[string]func([]byte) (river.JobArgs, error){}}
+	registerZernioLifecycle(reg, cfg, ogen.Zernio, ogen.Maintenance, keys, newZernioSender(cfg), children)
 	return reg
 }

@@ -45,6 +45,14 @@ func RegisterPeriodic[A river.JobArgs](r *Registry, worker river.Worker[A], ever
 		&river.PeriodicJobOpts{RunOnStart: true}))
 }
 
+// RegisterInternal adds a kind only river-service enqueues, such as the
+// per-tenant children a sweep fans out into: it has no Enqueue args and no
+// schedule.
+func RegisterInternal[A river.JobArgs](r *Registry, worker river.Worker[A]) {
+	river.AddWorker(r.workers, worker)
+	r.kinds++
+}
+
 // PeriodicJobs is the schedule of every registered sweep.
 func (r *Registry) PeriodicJobs() []*river.PeriodicJob { return r.periodic }
 

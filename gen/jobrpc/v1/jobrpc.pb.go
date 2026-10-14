@@ -10,6 +10,7 @@ import (
 	v1 "github.com/ogen-app/river-service/gen/jobs/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -181,8 +182,8 @@ type RunRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The sweep: "cleanup_post_logs", "cleanup_notifications",
 	// "cleanup_login_security", "cleanup_plugin_pairings",
-	// "sweep_pending_uploads" or "cleanup_email_logs". Any other name is
-	// INVALID_ARGUMENT.
+	// "sweep_pending_uploads", "cleanup_email_logs" or
+	// "cleanup_zernio_connect_sessions". Any other name is INVALID_ARGUMENT.
 	Task          string `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -655,11 +656,639 @@ func (*RecordEmailOutcomeResponse) Descriptor() ([]byte, []int) {
 	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{9}
 }
 
+type StepRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The job kind, e.g. "bootstrap_zernio_profile".
+	Kind string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	// The job's arguments as JSON, as river-service stores them.
+	Args []byte `protobuf:"bytes,2,opt,name=args,proto3" json:"args,omitempty"`
+	// The state ogen returned from the previous step; empty on the first.
+	State []byte `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	// The response to the call ogen asked for last; unset on the first step.
+	Result        *ZernioResult `protobuf:"bytes,4,opt,name=result,proto3" json:"result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StepRequest) Reset() {
+	*x = StepRequest{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StepRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StepRequest) ProtoMessage() {}
+
+func (x *StepRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StepRequest.ProtoReflect.Descriptor instead.
+func (*StepRequest) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *StepRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *StepRequest) GetArgs() []byte {
+	if x != nil {
+		return x.Args
+	}
+	return nil
+}
+
+func (x *StepRequest) GetState() []byte {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+func (x *StepRequest) GetResult() *ZernioResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
+type StepResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Opaque to river-service; pass it to the next step unchanged.
+	State []byte `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	// Types that are valid to be assigned to Next:
+	//
+	//	*StepResponse_Call
+	//	*StepResponse_Done
+	//	*StepResponse_Retry
+	//	*StepResponse_Transfer
+	Next          isStepResponse_Next `protobuf_oneof:"next"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StepResponse) Reset() {
+	*x = StepResponse{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StepResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StepResponse) ProtoMessage() {}
+
+func (x *StepResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StepResponse.ProtoReflect.Descriptor instead.
+func (*StepResponse) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *StepResponse) GetState() []byte {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+func (x *StepResponse) GetNext() isStepResponse_Next {
+	if x != nil {
+		return x.Next
+	}
+	return nil
+}
+
+func (x *StepResponse) GetCall() *ZernioCall {
+	if x != nil {
+		if x, ok := x.Next.(*StepResponse_Call); ok {
+			return x.Call
+		}
+	}
+	return nil
+}
+
+func (x *StepResponse) GetDone() *ZernioStepDone {
+	if x != nil {
+		if x, ok := x.Next.(*StepResponse_Done); ok {
+			return x.Done
+		}
+	}
+	return nil
+}
+
+func (x *StepResponse) GetRetry() *ZernioStepRetry {
+	if x != nil {
+		if x, ok := x.Next.(*StepResponse_Retry); ok {
+			return x.Retry
+		}
+	}
+	return nil
+}
+
+func (x *StepResponse) GetTransfer() *MediaTransfer {
+	if x != nil {
+		if x, ok := x.Next.(*StepResponse_Transfer); ok {
+			return x.Transfer
+		}
+	}
+	return nil
+}
+
+type isStepResponse_Next interface {
+	isStepResponse_Next()
+}
+
+type StepResponse_Call struct {
+	// Make this Zernio call, then step again with its result.
+	Call *ZernioCall `protobuf:"bytes,2,opt,name=call,proto3,oneof"`
+}
+
+type StepResponse_Done struct {
+	// The job is finished.
+	Done *ZernioStepDone `protobuf:"bytes,3,opt,name=done,proto3,oneof"`
+}
+
+type StepResponse_Retry struct {
+	// Stop and retry the job later (a transient failure).
+	Retry *ZernioStepRetry `protobuf:"bytes,4,opt,name=retry,proto3,oneof"`
+}
+
+type StepResponse_Transfer struct {
+	// Stream a stored file to an upload URL Zernio handed out, then step again
+	// with the upload's result.
+	Transfer *MediaTransfer `protobuf:"bytes,5,opt,name=transfer,proto3,oneof"`
+}
+
+func (*StepResponse_Call) isStepResponse_Next() {}
+
+func (*StepResponse_Done) isStepResponse_Next() {}
+
+func (*StepResponse_Retry) isStepResponse_Next() {}
+
+func (*StepResponse_Transfer) isStepResponse_Next() {}
+
+// MediaTransfer copies one stored file to a presigned upload URL. The bytes
+// stream through river-service and never through ogen.
+type MediaTransfer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A short-lived download link to the file in ogen's storage.
+	SourceUrl string `protobuf:"bytes,1,opt,name=source_url,json=sourceUrl,proto3" json:"source_url,omitempty"`
+	// Where to PUT it (a Zernio presigned upload URL, absolute).
+	UploadUrl   string `protobuf:"bytes,2,opt,name=upload_url,json=uploadUrl,proto3" json:"upload_url,omitempty"`
+	ContentType string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	// Size in bytes, for Content-Length and the upload's time budget.
+	Size          int64 `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MediaTransfer) Reset() {
+	*x = MediaTransfer{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MediaTransfer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MediaTransfer) ProtoMessage() {}
+
+func (x *MediaTransfer) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MediaTransfer.ProtoReflect.Descriptor instead.
+func (*MediaTransfer) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *MediaTransfer) GetSourceUrl() string {
+	if x != nil {
+		return x.SourceUrl
+	}
+	return ""
+}
+
+func (x *MediaTransfer) GetUploadUrl() string {
+	if x != nil {
+		return x.UploadUrl
+	}
+	return ""
+}
+
+func (x *MediaTransfer) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *MediaTransfer) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+// ZernioCall is one request to Zernio's API, relative to its base URL.
+// river-service adds the Authorization header.
+type ZernioCall struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Method string                 `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`
+	// Path below the API base, e.g. "/profiles/abc".
+	Path    string            `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Query   []*QueryParam     `protobuf:"bytes,3,rep,name=query,proto3" json:"query,omitempty"`
+	Headers map[string]string `protobuf:"bytes,4,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// JSON body; empty for none.
+	Body          []byte `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZernioCall) Reset() {
+	*x = ZernioCall{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZernioCall) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZernioCall) ProtoMessage() {}
+
+func (x *ZernioCall) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZernioCall.ProtoReflect.Descriptor instead.
+func (*ZernioCall) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ZernioCall) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *ZernioCall) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ZernioCall) GetQuery() []*QueryParam {
+	if x != nil {
+		return x.Query
+	}
+	return nil
+}
+
+func (x *ZernioCall) GetHeaders() map[string]string {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
+}
+
+func (x *ZernioCall) GetBody() []byte {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
+type QueryParam struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryParam) Reset() {
+	*x = QueryParam{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryParam) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryParam) ProtoMessage() {}
+
+func (x *QueryParam) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryParam.ProtoReflect.Descriptor instead.
+func (*QueryParam) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *QueryParam) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *QueryParam) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type ZernioResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// HTTP status; 0 when the request never got a response.
+	Status int32  `protobuf:"varint,1,opt,name=status,proto3" json:"status,omitempty"`
+	Body   []byte `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	// Why the request got no response (network error, timeout).
+	Error         string `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZernioResult) Reset() {
+	*x = ZernioResult{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZernioResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZernioResult) ProtoMessage() {}
+
+func (x *ZernioResult) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZernioResult.ProtoReflect.Descriptor instead.
+func (*ZernioResult) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ZernioResult) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *ZernioResult) GetBody() []byte {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
+func (x *ZernioResult) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type ZernioStepDone struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A short label for logs, e.g. "bootstrapped", "skipped_inactive".
+	Outcome string `protobuf:"bytes,1,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	// Jobs river-service should enqueue, e.g. one per tenant for a sweep.
+	Enqueue       []*ChildJob `protobuf:"bytes,2,rep,name=enqueue,proto3" json:"enqueue,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZernioStepDone) Reset() {
+	*x = ZernioStepDone{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZernioStepDone) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZernioStepDone) ProtoMessage() {}
+
+func (x *ZernioStepDone) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZernioStepDone.ProtoReflect.Descriptor instead.
+func (*ZernioStepDone) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ZernioStepDone) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *ZernioStepDone) GetEnqueue() []*ChildJob {
+	if x != nil {
+		return x.Enqueue
+	}
+	return nil
+}
+
+// ChildJob is a job river-service enqueues on ogen's behalf.
+type ChildJob struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Kind  string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	// The child's arguments as JSON.
+	Args          []byte `protobuf:"bytes,2,opt,name=args,proto3" json:"args,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChildJob) Reset() {
+	*x = ChildJob{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChildJob) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChildJob) ProtoMessage() {}
+
+func (x *ChildJob) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChildJob.ProtoReflect.Descriptor instead.
+func (*ChildJob) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ChildJob) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ChildJob) GetArgs() []byte {
+	if x != nil {
+		return x.Args
+	}
+	return nil
+}
+
+type ZernioStepRetry struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Reason string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
+	// How long to wait before retrying; unset leaves it to the job's backoff.
+	After         *durationpb.Duration `protobuf:"bytes,2,opt,name=after,proto3" json:"after,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZernioStepRetry) Reset() {
+	*x = ZernioStepRetry{}
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZernioStepRetry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZernioStepRetry) ProtoMessage() {}
+
+func (x *ZernioStepRetry) ProtoReflect() protoreflect.Message {
+	mi := &file_jobrpc_v1_jobrpc_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZernioStepRetry.ProtoReflect.Descriptor instead.
+func (*ZernioStepRetry) Descriptor() ([]byte, []int) {
+	return file_jobrpc_v1_jobrpc_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ZernioStepRetry) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ZernioStepRetry) GetAfter() *durationpb.Duration {
+	if x != nil {
+		return x.After
+	}
+	return nil
+}
+
 var File_jobrpc_v1_jobrpc_proto protoreflect.FileDescriptor
 
 const file_jobrpc_v1_jobrpc_proto_rawDesc = "" +
 	"\n" +
-	"\x16jobrpc/v1/jobrpc.proto\x12\tjobrpc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x12jobs/v1/jobs.proto\"\"\n" +
+	"\x16jobrpc/v1/jobrpc.proto\x12\tjobrpc.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x12jobs/v1/jobs.proto\"\"\n" +
 	"\fLeaseRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"`\n" +
 	"\rLeaseResponse\x12\x14\n" +
@@ -696,7 +1325,53 @@ const file_jobrpc_v1_jobrpc_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\v2\x17.jobrpc.v1.EmailMessageR\amessage\x12.\n" +
 	"\x13provider_message_id\x18\x04 \x01(\tR\x11providerMessageId\x12\x14\n" +
 	"\x05error\x18\x05 \x01(\tR\x05error\"\x1c\n" +
-	"\x1aRecordEmailOutcomeResponse*\x83\x01\n" +
+	"\x1aRecordEmailOutcomeResponse\"|\n" +
+	"\vStepRequest\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04args\x18\x02 \x01(\fR\x04args\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\fR\x05state\x12/\n" +
+	"\x06result\x18\x04 \x01(\v2\x17.jobrpc.v1.ZernioResultR\x06result\"\xf6\x01\n" +
+	"\fStepResponse\x12\x14\n" +
+	"\x05state\x18\x01 \x01(\fR\x05state\x12+\n" +
+	"\x04call\x18\x02 \x01(\v2\x15.jobrpc.v1.ZernioCallH\x00R\x04call\x12/\n" +
+	"\x04done\x18\x03 \x01(\v2\x19.jobrpc.v1.ZernioStepDoneH\x00R\x04done\x122\n" +
+	"\x05retry\x18\x04 \x01(\v2\x1a.jobrpc.v1.ZernioStepRetryH\x00R\x05retry\x126\n" +
+	"\btransfer\x18\x05 \x01(\v2\x18.jobrpc.v1.MediaTransferH\x00R\btransferB\x06\n" +
+	"\x04next\"\x84\x01\n" +
+	"\rMediaTransfer\x12\x1d\n" +
+	"\n" +
+	"source_url\x18\x01 \x01(\tR\tsourceUrl\x12\x1d\n" +
+	"\n" +
+	"upload_url\x18\x02 \x01(\tR\tuploadUrl\x12!\n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
+	"\x04size\x18\x04 \x01(\x03R\x04size\"\xf3\x01\n" +
+	"\n" +
+	"ZernioCall\x12\x16\n" +
+	"\x06method\x18\x01 \x01(\tR\x06method\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12+\n" +
+	"\x05query\x18\x03 \x03(\v2\x15.jobrpc.v1.QueryParamR\x05query\x12<\n" +
+	"\aheaders\x18\x04 \x03(\v2\".jobrpc.v1.ZernioCall.HeadersEntryR\aheaders\x12\x12\n" +
+	"\x04body\x18\x05 \x01(\fR\x04body\x1a:\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"4\n" +
+	"\n" +
+	"QueryParam\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"P\n" +
+	"\fZernioResult\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\x05R\x06status\x12\x12\n" +
+	"\x04body\x18\x02 \x01(\fR\x04body\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"Y\n" +
+	"\x0eZernioStepDone\x12\x18\n" +
+	"\aoutcome\x18\x01 \x01(\tR\aoutcome\x12-\n" +
+	"\aenqueue\x18\x02 \x03(\v2\x13.jobrpc.v1.ChildJobR\aenqueue\"2\n" +
+	"\bChildJob\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04args\x18\x02 \x01(\fR\x04args\"Z\n" +
+	"\x0fZernioStepRetry\x12\x16\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason\x12/\n" +
+	"\x05after\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x05after*\x83\x01\n" +
 	"\fEmailOutcome\x12\x1d\n" +
 	"\x19EMAIL_OUTCOME_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12EMAIL_OUTCOME_SENT\x10\x01\x12\x18\n" +
@@ -708,7 +1383,9 @@ const file_jobrpc_v1_jobrpc_proto_rawDesc = "" +
 	"\x03Run\x12\x15.jobrpc.v1.RunRequest\x1a\x16.jobrpc.v1.RunResponse2\xc5\x01\n" +
 	"\x0fEmailJobService\x12O\n" +
 	"\fPrepareEmail\x12\x1e.jobrpc.v1.PrepareEmailRequest\x1a\x1f.jobrpc.v1.PrepareEmailResponse\x12a\n" +
-	"\x12RecordEmailOutcome\x12$.jobrpc.v1.RecordEmailOutcomeRequest\x1a%.jobrpc.v1.RecordEmailOutcomeResponseB\x9b\x01\n" +
+	"\x12RecordEmailOutcome\x12$.jobrpc.v1.RecordEmailOutcomeRequest\x1a%.jobrpc.v1.RecordEmailOutcomeResponse2K\n" +
+	"\x10ZernioJobService\x127\n" +
+	"\x04Step\x12\x16.jobrpc.v1.StepRequest\x1a\x17.jobrpc.v1.StepResponseB\x9b\x01\n" +
 	"\rcom.jobrpc.v1B\vJobrpcProtoP\x01Z8github.com/ogen-app/river-service/gen/jobrpc/v1;jobrpcv1\xa2\x02\x03JXX\xaa\x02\tJobrpc.V1\xca\x02\tJobrpc\\V1\xe2\x02\x15Jobrpc\\V1\\GPBMetadata\xea\x02\n" +
 	"Jobrpc::V1b\x06proto3"
 
@@ -725,7 +1402,7 @@ func file_jobrpc_v1_jobrpc_proto_rawDescGZIP() []byte {
 }
 
 var file_jobrpc_v1_jobrpc_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_jobrpc_v1_jobrpc_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_jobrpc_v1_jobrpc_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_jobrpc_v1_jobrpc_proto_goTypes = []any{
 	(EmailOutcome)(0),                  // 0: jobrpc.v1.EmailOutcome
 	(*LeaseRequest)(nil),               // 1: jobrpc.v1.LeaseRequest
@@ -738,32 +1415,54 @@ var file_jobrpc_v1_jobrpc_proto_goTypes = []any{
 	(*EmailSettled)(nil),               // 8: jobrpc.v1.EmailSettled
 	(*RecordEmailOutcomeRequest)(nil),  // 9: jobrpc.v1.RecordEmailOutcomeRequest
 	(*RecordEmailOutcomeResponse)(nil), // 10: jobrpc.v1.RecordEmailOutcomeResponse
-	nil,                                // 11: jobrpc.v1.EmailMessage.HeadersEntry
-	(*timestamppb.Timestamp)(nil),      // 12: google.protobuf.Timestamp
-	(*v1.SendEmailArgs)(nil),           // 13: jobs.v1.SendEmailArgs
+	(*StepRequest)(nil),                // 11: jobrpc.v1.StepRequest
+	(*StepResponse)(nil),               // 12: jobrpc.v1.StepResponse
+	(*MediaTransfer)(nil),              // 13: jobrpc.v1.MediaTransfer
+	(*ZernioCall)(nil),                 // 14: jobrpc.v1.ZernioCall
+	(*QueryParam)(nil),                 // 15: jobrpc.v1.QueryParam
+	(*ZernioResult)(nil),               // 16: jobrpc.v1.ZernioResult
+	(*ZernioStepDone)(nil),             // 17: jobrpc.v1.ZernioStepDone
+	(*ChildJob)(nil),                   // 18: jobrpc.v1.ChildJob
+	(*ZernioStepRetry)(nil),            // 19: jobrpc.v1.ZernioStepRetry
+	nil,                                // 20: jobrpc.v1.EmailMessage.HeadersEntry
+	nil,                                // 21: jobrpc.v1.ZernioCall.HeadersEntry
+	(*timestamppb.Timestamp)(nil),      // 22: google.protobuf.Timestamp
+	(*v1.SendEmailArgs)(nil),           // 23: jobs.v1.SendEmailArgs
+	(*durationpb.Duration)(nil),        // 24: google.protobuf.Duration
 }
 var file_jobrpc_v1_jobrpc_proto_depIdxs = []int32{
-	12, // 0: jobrpc.v1.LeaseResponse.expires_at:type_name -> google.protobuf.Timestamp
-	13, // 1: jobrpc.v1.PrepareEmailRequest.args:type_name -> jobs.v1.SendEmailArgs
+	22, // 0: jobrpc.v1.LeaseResponse.expires_at:type_name -> google.protobuf.Timestamp
+	23, // 1: jobrpc.v1.PrepareEmailRequest.args:type_name -> jobs.v1.SendEmailArgs
 	7,  // 2: jobrpc.v1.PrepareEmailResponse.send:type_name -> jobrpc.v1.EmailMessage
 	8,  // 3: jobrpc.v1.PrepareEmailResponse.settled:type_name -> jobrpc.v1.EmailSettled
-	11, // 4: jobrpc.v1.EmailMessage.headers:type_name -> jobrpc.v1.EmailMessage.HeadersEntry
-	13, // 5: jobrpc.v1.RecordEmailOutcomeRequest.args:type_name -> jobs.v1.SendEmailArgs
+	20, // 4: jobrpc.v1.EmailMessage.headers:type_name -> jobrpc.v1.EmailMessage.HeadersEntry
+	23, // 5: jobrpc.v1.RecordEmailOutcomeRequest.args:type_name -> jobs.v1.SendEmailArgs
 	0,  // 6: jobrpc.v1.RecordEmailOutcomeRequest.outcome:type_name -> jobrpc.v1.EmailOutcome
 	7,  // 7: jobrpc.v1.RecordEmailOutcomeRequest.message:type_name -> jobrpc.v1.EmailMessage
-	1,  // 8: jobrpc.v1.CredentialService.Lease:input_type -> jobrpc.v1.LeaseRequest
-	3,  // 9: jobrpc.v1.MaintenanceService.Run:input_type -> jobrpc.v1.RunRequest
-	5,  // 10: jobrpc.v1.EmailJobService.PrepareEmail:input_type -> jobrpc.v1.PrepareEmailRequest
-	9,  // 11: jobrpc.v1.EmailJobService.RecordEmailOutcome:input_type -> jobrpc.v1.RecordEmailOutcomeRequest
-	2,  // 12: jobrpc.v1.CredentialService.Lease:output_type -> jobrpc.v1.LeaseResponse
-	4,  // 13: jobrpc.v1.MaintenanceService.Run:output_type -> jobrpc.v1.RunResponse
-	6,  // 14: jobrpc.v1.EmailJobService.PrepareEmail:output_type -> jobrpc.v1.PrepareEmailResponse
-	10, // 15: jobrpc.v1.EmailJobService.RecordEmailOutcome:output_type -> jobrpc.v1.RecordEmailOutcomeResponse
-	12, // [12:16] is the sub-list for method output_type
-	8,  // [8:12] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	16, // 8: jobrpc.v1.StepRequest.result:type_name -> jobrpc.v1.ZernioResult
+	14, // 9: jobrpc.v1.StepResponse.call:type_name -> jobrpc.v1.ZernioCall
+	17, // 10: jobrpc.v1.StepResponse.done:type_name -> jobrpc.v1.ZernioStepDone
+	19, // 11: jobrpc.v1.StepResponse.retry:type_name -> jobrpc.v1.ZernioStepRetry
+	13, // 12: jobrpc.v1.StepResponse.transfer:type_name -> jobrpc.v1.MediaTransfer
+	15, // 13: jobrpc.v1.ZernioCall.query:type_name -> jobrpc.v1.QueryParam
+	21, // 14: jobrpc.v1.ZernioCall.headers:type_name -> jobrpc.v1.ZernioCall.HeadersEntry
+	18, // 15: jobrpc.v1.ZernioStepDone.enqueue:type_name -> jobrpc.v1.ChildJob
+	24, // 16: jobrpc.v1.ZernioStepRetry.after:type_name -> google.protobuf.Duration
+	1,  // 17: jobrpc.v1.CredentialService.Lease:input_type -> jobrpc.v1.LeaseRequest
+	3,  // 18: jobrpc.v1.MaintenanceService.Run:input_type -> jobrpc.v1.RunRequest
+	5,  // 19: jobrpc.v1.EmailJobService.PrepareEmail:input_type -> jobrpc.v1.PrepareEmailRequest
+	9,  // 20: jobrpc.v1.EmailJobService.RecordEmailOutcome:input_type -> jobrpc.v1.RecordEmailOutcomeRequest
+	11, // 21: jobrpc.v1.ZernioJobService.Step:input_type -> jobrpc.v1.StepRequest
+	2,  // 22: jobrpc.v1.CredentialService.Lease:output_type -> jobrpc.v1.LeaseResponse
+	4,  // 23: jobrpc.v1.MaintenanceService.Run:output_type -> jobrpc.v1.RunResponse
+	6,  // 24: jobrpc.v1.EmailJobService.PrepareEmail:output_type -> jobrpc.v1.PrepareEmailResponse
+	10, // 25: jobrpc.v1.EmailJobService.RecordEmailOutcome:output_type -> jobrpc.v1.RecordEmailOutcomeResponse
+	12, // 26: jobrpc.v1.ZernioJobService.Step:output_type -> jobrpc.v1.StepResponse
+	22, // [22:27] is the sub-list for method output_type
+	17, // [17:22] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_jobrpc_v1_jobrpc_proto_init() }
@@ -775,15 +1474,21 @@ func file_jobrpc_v1_jobrpc_proto_init() {
 		(*PrepareEmailResponse_Send)(nil),
 		(*PrepareEmailResponse_Settled)(nil),
 	}
+	file_jobrpc_v1_jobrpc_proto_msgTypes[11].OneofWrappers = []any{
+		(*StepResponse_Call)(nil),
+		(*StepResponse_Done)(nil),
+		(*StepResponse_Retry)(nil),
+		(*StepResponse_Transfer)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_jobrpc_v1_jobrpc_proto_rawDesc), len(file_jobrpc_v1_jobrpc_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   21,
 			NumExtensions: 0,
-			NumServices:   3,
+			NumServices:   4,
 		},
 		GoTypes:           file_jobrpc_v1_jobrpc_proto_goTypes,
 		DependencyIndexes: file_jobrpc_v1_jobrpc_proto_depIdxs,
