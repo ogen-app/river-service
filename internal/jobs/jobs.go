@@ -32,6 +32,7 @@ func Registry(cfg *config.Config, ogen *ogenrpc.Client) *queue.Registry {
 	registerHarbor(reg, cfg.HarborWebhookURL, keys)
 	steps := stepDeps{ogen: ogen.Steps, actions: newActions(cfg, keys), children: newChildKinds()}
 	registerZernioLifecycle(reg, cfg, steps, ogen.Maintenance)
+	registerPublishing(reg, steps)
 	return reg
 }
 

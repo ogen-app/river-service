@@ -297,3 +297,11 @@ func TestDoneCancelsMatchingJobs(t *testing.T) {
 		}
 	}
 }
+
+func TestPublishingKindsRegister(t *testing.T) {
+	reg := queue.NewRegistry()
+	registerPublishing(reg, stepDeps{ogen: &scriptedSteps{}, actions: &recordingActions{}, children: newChildKinds()})
+	if reg.Len() != 5 {
+		t.Errorf("registered %d kinds, want 5", reg.Len())
+	}
+}
