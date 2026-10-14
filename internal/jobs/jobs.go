@@ -9,8 +9,10 @@ package jobs
 
 import (
 	"github.com/ogen-app/river-service/internal/config"
+	"github.com/ogen-app/river-service/internal/credentials"
 	"github.com/ogen-app/river-service/internal/ogenrpc"
 	"github.com/ogen-app/river-service/internal/queue"
+	"github.com/ogen-app/river-service/internal/resend"
 )
 
 // Registry returns every job kind this build can run. Without a connection to
@@ -21,5 +23,8 @@ func Registry(cfg *config.Config, ogen *ogenrpc.Client) *queue.Registry {
 		return reg
 	}
 	registerHousekeeping(reg, cfg, ogen.Maintenance)
+	registerEmail(reg, ogen.Email, ogen.Maintenance, credentials.NewCache(ogen.Credentials),
+		resend.New(cfg.EmailBaseURL, cfg.EmailHTTPTimeout))
+	registerHarbor(reg, cfg.HarborWebhookURL, cfg.HarborWebhookSecret)
 	return reg
 }

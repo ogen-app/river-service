@@ -82,6 +82,16 @@ type Config struct {
 	NotificationsCleanupEvery  time.Duration `envconfig:"NOTIFICATIONS_CLEANUP_EVERY" default:"24h"`
 	PendingUploadSweepInterval time.Duration `envconfig:"PENDING_UPLOAD_SWEEP_INTERVAL" default:"1h"`
 
+	// Resend endpoint and per-call timeout for send_email. The API key is
+	// leased from ogen.
+	EmailBaseURL     string        `envconfig:"EMAIL_BASE_URL" default:"https://api.resend.com"`
+	EmailHTTPTimeout time.Duration `envconfig:"EMAIL_HTTP_TIMEOUT" default:"15s"`
+
+	// Harbor's new-tenant webhook and its HMAC signing key. An empty URL turns
+	// the notification off; an empty secret sends it unsigned.
+	HarborWebhookURL    string `envconfig:"HARBOR_WEBHOOK_URL"`
+	HarborWebhookSecret string `envconfig:"HARBOR_WEBHOOK_SECRET"`
+
 	// HealthAddr serves the HTTP liveness and readiness checks Railway probes.
 	HealthAddr string `envconfig:"HEALTH_ADDR" default:":8080"`
 
