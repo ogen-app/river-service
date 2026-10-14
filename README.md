@@ -135,6 +135,19 @@ is leader.
   health listener uses `PORT` when `HEALTH_ADDR` is unset, so leave
   `HEALTH_ADDR` unset on Railway. Restart policy: on failure.
 
+**Variables per service.** Both: `DATABASE_DSN`, `RIVER_SCHEMA`,
+`OGEN_GRPC_ADDR`, `OGEN_RPC_AUTH_TOKEN`, `SOFT_STOP_TIMEOUT`,
+`SHUTDOWN_TIMEOUT`, `SENTRY_*`, `LOG_*`. `river-service` only: `GRPC_ADDR` and
+`GRPC_AUTH_TOKEN` (the `JobService` ogen relays to), the cadences of the
+periodic sweeps (its leader schedules them; the heavy service schedules
+none, as its queues hold no periodic kind), `HARBOR_WEBHOOK_URL`.
+`river-service-heavy` only: `PDF_SERVICE_ADDR`, `DOCUMENTS_SERVICE_ADDR`,
+`IMAGE_SERVICE_ADDR`, `AUDIO_SERVICE_ADDR` (the sidecars' private
+addresses), `GEMINI_*` and `FIRECRAWL_*` overrides if any. Worker counts:
+start with the defaults (4 default, 4 analysis, 2 each heavy queue) and one
+replica of each; every analysis job holds a worker while ogen runs its model
+call, so `ANALYSIS_JOB_WORKERS` × replicas is how many analyses run at once.
+
 **Postgres.** Create the role and schema once, as a superuser on ogen's
 database:
 
@@ -162,6 +175,22 @@ quotas.
 river-service ships the workers, then ogen adds the kinds to
 `OUTBOX_RELAY_KINDS`. A slip only delays jobs: unknown kinds stay in ogen's
 outbox, and a job whose ogen RPC is missing snoozes.
+
+**Cutover.** Families move one at a time by appending their kinds to ogen's
+`OUTBOX_RELAY_KINDS` (comma separated), each after a staging comparison
+against the in-process path:
+
+1. Housekeeping: `cleanup_post_logs,cleanup_notifications,cleanup_login_security,cleanup_plugin_pairings,sweep_pending_uploads`
+2. Email and Harbor: `send_email,cleanup_email_logs,notify_harbor_tenant_registered`
+3. Zernio lifecycle: `bootstrap_zernio_profile,teardown_zernio_profile,detect_expiring_connections,cleanup_zernio_connect_sessions`
+4. Ingestion (needs `river-service-heavy`): `process_pdf,process_document,process_url,process_image,reembed_image,process_audio`
+5. Asset analysis: `analyze_asset,reanalyze_campaign,backfill_asset_analyses`
+6. Publishing, as one step since its jobs chain: `submit_post_to_zernio,poll_zernio_status,cancel_zernio_job,withdraw_zernio_post,post_first_comment`,
+   then `sweep_zernio_orphans,reconcile_scheduled_posts,detect_manual_publish_due,refresh_zernio_analytics,refresh_zernio_followers`
+
+Jobs already queued in ogen's in-process River finish there. Once
+`river_job` in ogen's schema holds no live rows of any kind, ogen's River
+can be removed (CON-332 phase 7).
 
 **Rollback.** Roll back river-service to the previous image. Jobs of a kind the
 older build doesn't know are refused at `Enqueue` and wait in ogen's outbox;
