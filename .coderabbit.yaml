@@ -1,0 +1,101 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit configuration for ogen-app/river-service (CON-332). The default
+# branch carries this file so it applies as the base config on every PR.
+language: en-US
+early_access: false
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  changed_files_summary: true
+  sequence_diagrams: true
+
+  # Generated protobuf stubs and build output are noise in review.
+  path_filters:
+    - "!gen/**"
+    - "!**/*.pb.go"
+    - "!go.sum"
+
+  # Repo-specific review guidance so CodeRabbit enforces this service's
+  # conventions rather than generic Go advice.
+  path_instructions:
+    - path: "**/*.go"
+      instructions: >-
+        river-service is strictly isolated from ogen. Flag any import of
+        github.com/ogen-app/ogen, any SQL that touches tables outside the
+        river_service schema, any object-storage client or credential, and any
+        model id read from env or compiled in: ogen data, storage access and
+        model choice come only from ogen's job RPCs (presigned links, resolved
+        models). The only shared code is the jobs.v1 contract in gen/.
+    - path: "internal/**/*.go"
+      instructions: >-
+        All application logging must go through log/slog — flag any stdlib
+        log.Print/Printf/Println calls (boot-time log.Fatal* in cmd/ is the
+        only exception). Structured logs should carry a "component" key, and
+        logs inside a job or RPC must use the *Context variants so request and
+        trace ids are attached.
+    - path: "internal/jobservice/**/*.go"
+      instructions: >-
+        JobService is ogen's outbox relay target and its error mapping is
+        load-bearing. An args oneof that is unset (a kind newer than this
+        build) or a kind with no registered worker must return
+        codes.Unimplemented, so the relay keeps the outbox row and retries;
+        never InvalidArgument or Internal for those. Enqueue must stay
+        idempotent: the idempotency key and the River insert are written in one
+        transaction, a repeated key returns the first job with duplicate set,
+        and concurrent duplicates must not create two jobs. Internal errors
+        must not leak SQL or driver details to the caller.
+    - path: "internal/queue/**/*.go"
+      instructions: >-
+        Middleware order is load-bearing: tracing wraps drain. The drain
+        middleware turns a run cut short by a client stop into a snooze (no
+        attempt used) and must leave remote JobCancel, JobCancel and existing
+        snoozes untouched. A snooze is never recorded as a span error or sent
+        to Sentry. Job spans are children of the enqueuing trace restored from
+        job metadata, plus a link to it. Migrations run on the advisory-locked
+        connection (MigrateTx), so a one-connection pool still works. Flag any
+        change that lets RescueStuckJobsAfter fall below a job's attempt
+        timeout, or SoftStopTimeout reach ShutdownTimeout.
+    - path: "internal/jobs/**/*.go"
+      instructions: >-
+        Every job step must finish well inside the 300s deploy drain window;
+        long work is a chain of short steps checkpointed in ogen (keyed by
+        run_key), never state held in this process or in a sidecar. Every step
+        must be safe to run twice: writes go through idempotent ogen RPCs.
+        RESOURCE_EXHAUSTED and UNIMPLEMENTED from ogen or a sidecar mean
+        snooze, not failure; a terminal outcome already recorded in ogen returns
+        nil or river.JobCancel, never an error that retries pointlessly. A job's
+        River kind must equal its jobs.v1 EnqueueRequest args field name.
+    - path: "internal/config/**/*.go"
+      instructions: >-
+        Every environment variable added, renamed or re-defaulted here must be
+        reflected in the README's Configuration table and, for deploy settings,
+        its "Deploying on Railway" section. Secrets (API keys, storage
+        credentials, ogen's KEK) never belong in this config: they are leased
+        from ogen.
+    - path: "README.md"
+      instructions: >-
+        The Configuration table and the "Deploying on Railway" section are the
+        operator reference (CON-377). Check that defaults match
+        internal/config/config.go and that drain, soft-stop and shutdown values
+        stay consistent (SHUTDOWN_TIMEOUT below
+        RAILWAY_DEPLOYMENT_DRAINING_SECONDS, SOFT_STOP_TIMEOUT at least 15s
+        below SHUTDOWN_TIMEOUT).
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+    base_branches:
+      - main
+
+  tools:
+    golangci-lint:
+      enabled: true
+
+chat:
+  auto_reply: true
