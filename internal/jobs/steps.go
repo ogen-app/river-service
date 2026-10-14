@@ -3,12 +3,15 @@ package jobs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 	"google.golang.org/grpc"
 
 	jobrpcv1 "github.com/ogen-app/river-service/gen/jobrpc/v1"
@@ -70,7 +73,10 @@ func (w *stepWorker[A]) Work(ctx context.Context, job *river.Job[A]) error {
 	var state []byte
 	var result *jobrpcv1.StepResult
 	for range maxSteps {
-		resp, err := w.ogen.Step(ctx, &jobrpcv1.StepRequest{Kind: job.Kind, Args: args, State: state, Result: result})
+		resp, err := w.ogen.Step(ctx, &jobrpcv1.StepRequest{
+			Kind: job.Kind, Args: args, State: state, Result: result,
+			Attempt: int32(job.Attempt), MaxAttempts: int32(job.MaxAttempts),
+		})
 		if err != nil {
 			return retryLater(err)
 		}
@@ -96,8 +102,17 @@ func (w *stepWorker[A]) Work(ctx context.Context, job *river.Job[A]) error {
 	return fmt.Errorf("%s: no result after %d steps", job.Kind, maxSteps)
 }
 
-// finish enqueues the child jobs ogen asked for, then ends the job.
+// finish enqueues the child jobs and cancels the queued jobs ogen asked for,
+// then ends the job.
 func (w *stepWorker[A]) finish(ctx context.Context, kind string, done *jobrpcv1.StepDone) error {
+	cancelled := 0
+	for _, m := range done.GetCancel() {
+		n, err := cancelMatching(ctx, m)
+		cancelled += n
+		if err != nil {
+			return fmt.Errorf("%s: cancel %s jobs: %w", kind, m.GetKind(), err)
+		}
+	}
 	if len(done.GetEnqueue()) > 0 {
 		params := make([]river.InsertManyParams, 0, len(done.GetEnqueue()))
 		for _, c := range done.GetEnqueue() {
@@ -116,8 +131,62 @@ func (w *stepWorker[A]) finish(ctx context.Context, kind string, done *jobrpcv1.
 		}
 	}
 	slog.InfoContext(ctx, "job done", logging.AttrComponent, "jobs.steps",
-		"job_kind", kind, "outcome", done.GetOutcome(), "children", len(done.GetEnqueue()))
+		"job_kind", kind, "outcome", done.GetOutcome(), "children", len(done.GetEnqueue()), "cancelled", cancelled)
 	return nil
+}
+
+// cancelLimit bounds the jobs one match cancels.
+const cancelLimit = 100
+
+// cancelMatching cancels the queued jobs m selects and returns how many River
+// cancelled outright; a running one finishes its attempt.
+func cancelMatching(ctx context.Context, m *jobrpcv1.JobMatch) (int, error) {
+	client, err := river.ClientFromContextSafely[pgx.Tx](ctx)
+	if err != nil {
+		return 0, err
+	}
+	params := river.NewJobListParams().Kinds(m.GetKind()).States(liveStates...).First(cancelLimit)
+	if len(m.GetArgs()) > 0 {
+		where, named := matchSQL(m.GetArgs())
+		params = params.Where(where, named)
+	}
+	res, err := client.JobList(ctx, params)
+	if err != nil {
+		return 0, err
+	}
+	cancelled := 0
+	for _, job := range res.Jobs {
+		row, err := client.JobCancel(ctx, job.ID)
+		if errors.Is(err, rivertype.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return cancelled, err
+		}
+		if row.State == rivertype.JobStateCancelled {
+			cancelled++
+		}
+	}
+	return cancelled, nil
+}
+
+// liveStates are the states a job can still be cancelled in.
+var liveStates = []rivertype.JobState{
+	rivertype.JobStateAvailable, rivertype.JobStateScheduled, rivertype.JobStateRetryable,
+	rivertype.JobStatePending, rivertype.JobStateRunning,
+}
+
+// matchSQL turns arg conditions into a JobList filter. Keys and values are
+// bound, never spliced in.
+func matchSQL(args []*jobrpcv1.ArgMatch) (string, river.NamedArgs) {
+	conds := make([]string, 0, len(args))
+	named := river.NamedArgs{}
+	for i, a := range args {
+		k, v := fmt.Sprintf("k%d", i), fmt.Sprintf("v%d", i)
+		conds = append(conds, fmt.Sprintf("COALESCE(args->>@%s, '') = ANY(@%s)", k, v))
+		named[k], named[v] = a.GetKey(), a.GetValues()
+	}
+	return strings.Join(conds, " AND "), named
 }
 
 // childKinds builds the args of the child jobs ogen's sweeps fan out into.
