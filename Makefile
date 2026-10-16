@@ -28,10 +28,10 @@ test-db:
 	@TEST_DATABASE_DSN="$(TEST_DATABASE_DSN)" go test -race ./...; EXIT=$$?; \
 		docker rm -f -v $(TEST_PG_CONTAINER) >/dev/null 2>&1; exit $$EXIT
 
+# The same checks as CI's Lint job (gofmt, goimports and vet run inside
+# golangci-lint; see .golangci.yml).
 lint:
-	@out="$$(gofmt -l $$(git ls-files '*.go' | grep -v '^gen/'))"; \
-		if [ -n "$$out" ]; then echo "needs gofmt:"; echo "$$out"; exit 1; fi
-	go vet ./...
+	golangci-lint run ./...
 
 proto:
 	buf generate $(PROTO_SOURCE) --path jobs/v1/jobs.proto --path jobrpc/v1/jobrpc.proto

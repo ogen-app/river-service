@@ -1,0 +1,51 @@
+version: "2"
+
+run:
+  go: "1.26"
+  timeout: 10m
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - gocyclo
+    - gocognit
+    - modernize
+  settings:
+    errcheck:
+      # Closing the read side (response bodies, downloads, uploaded files) has
+      # nothing to recover; write paths must still check Close.
+      exclude-functions:
+        - (io.ReadCloser).Close
+        - (mime/multipart.File).Close
+    gocyclo:
+      min-complexity: 20
+    gocognit:
+      min-complexity: 30
+  exclusions:
+    generated: strict
+    paths:
+      - ^gen/
+    rules:
+      # Table-driven and scenario tests are allowed to be long and branchy.
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - gocognit
+
+issues:
+  # The whole repo is lint-clean: report every issue, not a sample.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/ogen-app/river-service
+  exclusions:
+    generated: strict
+    paths:
+      - ^gen/

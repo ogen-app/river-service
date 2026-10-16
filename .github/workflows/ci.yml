@@ -17,7 +17,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  go:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: forbid stdlib log.Print calls
+        run: |
+          if git grep -nE 'log\.Print(ln|f)?\(' -- cmd internal; then
+            echo "::error::use log/slog, not the stdlib log.Print/Printf/Println functions"
+            exit 1
+          fi
+      # gofmt, goimports and go vet run inside golangci-lint (.golangci.yml).
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
+        with:
+          version: v2.14
+
+  test:
+    name: Test
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -38,19 +62,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: gofmt
-        run: |
-          unformatted="$(gofmt -l $(git ls-files '*.go' | grep -v '^gen/'))"
-          if [ -n "$unformatted" ]; then echo "needs gofmt:"; echo "$unformatted"; exit 1; fi
-      - name: forbid stdlib log.Print calls
-        run: |
-          if git grep -nE 'log\.Print(ln|f)?\(' -- cmd internal; then
-            echo "::error::use log/slog, not the stdlib log.Print/Printf/Println functions"
-            exit 1
-          fi
-      - name: vet
-        run: go vet ./...
-      - name: test
+      # TEST_DATABASE_DSN turns on the tests that need Postgres (River's schema,
+      # the step loop, job service); without it they skip.
+      - name: go test
         run: go test -race ./...
         env:
           TEST_DATABASE_DSN: postgres://river:river@localhost:5432/postgres?sslmode=disable
@@ -82,7 +96,7 @@ jobs:
 
   build-push:
     runs-on: ubuntu-latest
-    needs: [go, proto]
+    needs: [lint, test, proto]
     if: github.event_name == 'push' && github.repository_owner == 'ogen-app'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
