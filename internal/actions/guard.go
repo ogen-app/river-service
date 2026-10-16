@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"syscall"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 // errBlocked refuses a fetch of a private or internal address.
@@ -50,14 +53,14 @@ func guardedClient(timeout time.Duration) *http.Client {
 	dialer := &net.Dialer{Timeout: 10 * time.Second, Control: dialGuard}
 	return &http.Client{
 		Timeout: timeout,
-		Transport: &http.Transport{
+		Transport: untracedOutbound(&http.Transport{
 			Proxy:               nil,
 			DialContext:         dialer.DialContext,
 			ForceAttemptHTTP2:   true,
 			MaxIdleConnsPerHost: 4,
 			IdleConnTimeout:     30 * time.Second,
 			TLSHandshakeTimeout: 10 * time.Second,
-		},
+		}),
 		CheckRedirect: func(_ *http.Request, via []*http.Request) error {
 			if len(via) >= 5 {
 				return errors.New("too many redirects")
@@ -65,4 +68,11 @@ func guardedClient(timeout time.Duration) *http.Client {
 			return nil
 		},
 	}
+}
+
+// untracedOutbound makes each request through rt a client span in the job's
+// trace, without sending the trace context: fetches go to arbitrary outside
+// hosts.
+func untracedOutbound(rt http.RoundTripper) http.RoundTripper {
+	return otelhttp.NewTransport(rt, otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator()))
 }

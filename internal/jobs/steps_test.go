@@ -16,6 +16,10 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertest"
 	"github.com/riverqueue/river/rivertype"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,6 +27,7 @@ import (
 
 	jobrpcv1 "github.com/ogen-app/river-service/gen/jobrpc/v1"
 	"github.com/ogen-app/river-service/internal/config"
+	"github.com/ogen-app/river-service/internal/logging"
 	"github.com/ogen-app/river-service/internal/queue"
 )
 
@@ -32,13 +37,18 @@ type scriptedSteps struct {
 	script   []*jobrpcv1.StepResponse
 	err      error
 	requests []*jobrpcv1.StepRequest
-	byKind   func(*jobrpcv1.StepRequest) *jobrpcv1.StepResponse
+	// traces and requestIDs record each call's trace and request id.
+	traces     []trace.TraceID
+	requestIDs []string
+	byKind     func(*jobrpcv1.StepRequest) *jobrpcv1.StepResponse
 }
 
-func (s *scriptedSteps) Step(_ context.Context, in *jobrpcv1.StepRequest, _ ...grpc.CallOption) (*jobrpcv1.StepResponse, error) {
+func (s *scriptedSteps) Step(ctx context.Context, in *jobrpcv1.StepRequest, _ ...grpc.CallOption) (*jobrpcv1.StepResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.requests = append(s.requests, in)
+	s.traces = append(s.traces, trace.SpanContextFromContext(ctx).TraceID())
+	s.requestIDs = append(s.requestIDs, logging.RequestID(ctx))
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -209,6 +219,73 @@ func TestSweepFansOutIntoTenantJobs(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	t.Fatal("the sweep's tenant jobs did not run")
+}
+
+// TestChildJobsContinueTheTrace checks a job's children run in the trace and
+// under the request id of the job that enqueued them, so one trace covers a
+// sweep and its fan-out, or a submit and the poll it schedules.
+func TestChildJobsContinueTheTrace(t *testing.T) {
+	ctx := t.Context()
+	pool, schema := testSchema(t)
+	tp := sdktrace.NewTracerProvider()
+	prevTP, prevProp := otel.GetTracerProvider(), otel.GetTextMapPropagator()
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	t.Cleanup(func() { otel.SetTracerProvider(prevTP); otel.SetTextMapPropagator(prevProp) })
+
+	steps := &scriptedSteps{byKind: func(in *jobrpcv1.StepRequest) *jobrpcv1.StepResponse {
+		if in.GetKind() == "detect_expiring_connections" {
+			return &jobrpcv1.StepResponse{Next: &jobrpcv1.StepResponse_Done{Done: &jobrpcv1.StepDone{Enqueue: []*jobrpcv1.ChildJob{
+				{Kind: "detect_expiring_connections_tenant", Args: []byte(`{"tenant_id":"t1","profile_id":"p1"}`)},
+			}}}}
+		}
+		return doneWith("checked")
+	}}
+	cfg := &config.Config{
+		RiverSchema: schema, RiverQueues: []string{config.QueueDefault}, DefaultWorkers: 2,
+		ShutdownTimeout: time.Minute, RescueStuckJobsAfter: time.Hour,
+	}
+	reg := queue.NewRegistry()
+	registerZernioLifecycle(reg, cfg, stepDeps{ogen: steps, actions: &recordingActions{}, children: newChildKinds()}, &fakeMaintenance{})
+	client, err := queue.NewClient(pool, cfg, reg, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = client.Stop(stopCtx)
+	})
+
+	// The parent arrives as ogen's enqueue would: in a trace, with a request id.
+	reqCtx, span := tp.Tracer("test").Start(ctx, "ogen request")
+	if _, err := client.Insert(ctx, DetectExpiringConnectionsArgs{}, &river.InsertOpts{Metadata: queue.EncodeMetadata(reqCtx, "req-42")}); err != nil {
+		t.Fatal(err)
+	}
+	span.End()
+	want := span.SpanContext().TraceID()
+
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		steps.mu.Lock()
+		for i, r := range steps.requests {
+			if r.GetKind() != "detect_expiring_connections_tenant" {
+				continue
+			}
+			got, gotReq := steps.traces[i], steps.requestIDs[i]
+			steps.mu.Unlock()
+			if got != want || gotReq != "req-42" {
+				t.Fatalf("child ran in trace %s with request %q, want %s and req-42", got, gotReq, want)
+			}
+			return
+		}
+		steps.mu.Unlock()
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatal("the child job did not run")
 }
 
 // testSchema returns a pool and a fresh migrated River schema, dropped after
