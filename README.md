@@ -5,14 +5,7 @@ takes jobs from ogen over `jobs.v1.JobService`, and works the queues listed in
 `RIVER_QUEUES`. It is internal-only: ogen reaches it over Railway's private
 network.
 
-```
-ogen request ─▶ tx { business write + job_outbox row } ─▶ outbox relay
-                                                            │ jobs.v1.JobService.Enqueue (gRPC)
-                                                            ▼
-                         river-service ─▶ River (schema river_service) ─▶ workers
-                                                            │
-                                  ogen job RPCs ◀───────────┘ (reads, writes, SSE, notifications)
-```
+![How a job flows between ogen and river-service](docs/jobs-flow.svg)
 
 ogen stays the system of record. river-service has no access to ogen's tables
 or object storage: its database role owns only the `river_service` schema, and
@@ -21,8 +14,8 @@ design is in Linear CON-332; the deployment configuration is CON-377.
 
 ## Status
 
-Job families move over from ogen one at a time (CON-332 phases 3–6) by
-registering their kinds in `internal/jobs`. A kind this build does not register
+Every job family now runs here (CON-332, phases 3–7); ogen has no queue of its
+own. Each kind is registered in `internal/jobs`. A kind this build does not register
 is refused by `Enqueue` with `UNIMPLEMENTED`, and ogen keeps it in its outbox.
 
 | Family | Kinds | State |
@@ -40,10 +33,11 @@ is refused by `Enqueue` with `UNIMPLEMENTED`, and ogen keeps it in its outbox.
 
 Jobs that call outside services run on one generic worker (`internal/jobs/steps.go`):
 1. It asks ogen for the next step (`JobStepService.Step`).
-2. ogen answers with one of five things:
-   - an HTTP call, either to a named API (`zernio`, `gemini`, `firecrawl`, sent with that API's leased key) or to an absolute URL fetched with no credentials through the SSRF guard
+2. ogen answers with one of six things:
+   - an HTTP call, either to a named API (`zernio`, `gemini`, `firecrawl`, sent with that API's leased key; a redirect comes back as the result rather than being followed, so the key never goes elsewhere) or to an absolute URL fetched with no credentials through the SSRF guard
    - a sidecar gRPC call, unary or client-streamed from a stored file
    - a media transfer from storage to an upload URL
+   - a wait: up to 30 s the worker sleeps and steps again with the same state; a longer one is a snooze
    - done, optionally with child jobs to enqueue
    - retry, now or after a delay
 3. The worker carries it out (`internal/actions`) and passes the raw result to the next `Step`. A call to an API whose key isn't set in ogen is not made; the result says `credential_missing`, and ogen decides what that means.
@@ -72,8 +66,10 @@ job ogen enqueues reaches this service through ogen's outbox.
   scaling is a change to the replica count.
 - **Tracing.** Each job attempt's span is a child of the span that enqueued it
   (restored from the job's metadata) and links to it, so one trace id covers the
-  ogen request, the job and the calls the job makes. Periodic sweeps start their
-  own trace. Failures go to Sentry once retries are exhausted.
+  ogen request, the job and the calls the job makes. Child jobs a step enqueues
+  carry the same trace and request id. Fetches of outside URLs are spans too, but
+  send no trace header to the outside host. Periodic sweeps start their own
+  trace. Failures go to Sentry once retries are exhausted.
 
 ## Configuration
 
