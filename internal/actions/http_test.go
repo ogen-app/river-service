@@ -156,3 +156,21 @@ func TestFetchesAreTracedWithoutSendingTheTrace(t *testing.T) {
 		t.Errorf("%d fetch spans under the job, want 2 (one served, one refused)", fetches)
 	}
 }
+
+func TestHTTPDoesNotFollowRedirects(t *testing.T) {
+	var leaked string
+	elsewhere := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { leaked = r.Header.Get("x-goog-api-key") }))
+	t.Cleanup(elsewhere.Close)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, elsewhere.URL+"/steal", http.StatusFound)
+	}))
+	t.Cleanup(upstream.Close)
+
+	res := executor(upstream.URL, keys{"gemini_api_key": "gk"}).HTTP(t.Context(), &jobrpcv1.HttpCall{Upstream: "gemini", Method: "POST", Path: "/v1beta/models/m:embedContent"})
+	if res.GetStatus() != http.StatusFound || res.GetError() != "" {
+		t.Errorf("result = %v, want the 302 handed back", res)
+	}
+	if leaked != "" {
+		t.Errorf("the redirect target got the key %q", leaked)
+	}
+}

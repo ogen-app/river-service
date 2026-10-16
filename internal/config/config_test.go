@@ -14,6 +14,8 @@ func setRequired(t *testing.T) {
 
 func TestLoadDefaults(t *testing.T) {
 	setRequired(t)
+	t.Setenv("PORT", "")
+	t.Setenv("HEALTH_ADDR", "")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -77,6 +79,7 @@ func TestEffectiveSoftStopClamps(t *testing.T) {
 
 func TestHealthAddrFollowsPort(t *testing.T) {
 	setRequired(t)
+	t.Setenv("HEALTH_ADDR", "")
 	t.Setenv("PORT", "3000")
 	cfg, err := Load()
 	if err != nil {

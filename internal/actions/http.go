@@ -63,12 +63,16 @@ func New(o Options) *Executor {
 	return &Executor{
 		keys:      o.Keys,
 		upstreams: o.Upstreams,
-		api:       &http.Client{},
+		api:       &http.Client{CheckRedirect: noRedirects},
 		open:      guardedClient(o.FetchTimeout),
 		transfer:  &http.Client{},
 		sidecars:  o.Sidecars,
 	}
 }
+
+// noRedirects hands a redirect back as the result: following it would send
+// the leased key to whichever host the redirect names.
+func noRedirects(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 
 // HTTP makes one planned HTTP call. A call to a named API goes to its base
 // URL with its leased key; with no key set in ogen the call is not made and
