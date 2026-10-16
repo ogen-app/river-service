@@ -52,9 +52,8 @@ ogen builds every request and decodes every response, so this service holds no d
 
 A workspace teardown holds a short lease in ogen. While it's held, a restore of that workspace is refused, and each step renews the lease, so a stalled teardown frees the workspace within two minutes.
 
-
-ogen keeps scheduling a sweep until it is listed in ogen's `OUTBOX_RELAY_KINDS`,
-so deploy river-service first, then list the family there.
+river-service is the only job runner: ogen has no queue of its own, and every
+job ogen enqueues reaches this service through ogen's outbox.
 
 ## How it works
 
@@ -172,31 +171,21 @@ oldest available job per queue, ogen's outbox relay lag, and ogen's job-RPC
 limiter rejections; keep replicas × workers within ogen's limiter and vendor
 quotas.
 
-**Deploy order** for each job family: ogen ships its new job RPCs, then
-river-service ships the workers, then ogen adds the kinds to
-`OUTBOX_RELAY_KINDS`. A slip only delays jobs: unknown kinds stay in ogen's
-outbox, and a job whose ogen RPC is missing snoozes.
+**Deploy order** for a new kind: tag the proto release, ship ogen with the
+kind's steps or maintenance pass, then ship river-service with its
+registration. A slip only delays jobs: river-service refuses a kind it
+doesn't know, so its rows wait in ogen's outbox, and a step ogen doesn't serve
+yet comes back `UNIMPLEMENTED` and the job snoozes.
 
-**Cutover.** Families move one at a time by appending their kinds to ogen's
-`OUTBOX_RELAY_KINDS` (comma separated), each after a staging comparison
-against the in-process path:
+**Rollback.** Roll back river-service to the previous image. Jobs of a kind
+the older build doesn't know are refused at `Enqueue` and wait in ogen's
+outbox until a build that knows them is back. Jobs already queued keep their
+place in River's tables, which a rollback doesn't touch.
 
-1. Housekeeping: `cleanup_post_logs,cleanup_notifications,cleanup_login_security,cleanup_plugin_pairings,sweep_pending_uploads`
-2. Email and Harbor: `send_email,cleanup_email_logs,notify_harbor_tenant_registered`
-3. Zernio lifecycle: `bootstrap_zernio_profile,teardown_zernio_profile,detect_expiring_connections,cleanup_zernio_connect_sessions`
-4. Ingestion (needs `river-service-heavy`): `process_pdf,process_document,process_url,process_image,reembed_image,process_audio`
-5. Asset analysis: `analyze_asset,reanalyze_campaign,backfill_asset_analyses`
-6. Publishing, as one step since its jobs chain: `submit_post_to_zernio,poll_zernio_status,cancel_zernio_job,withdraw_zernio_post,post_first_comment`,
-   then `sweep_zernio_orphans,reconcile_scheduled_posts,detect_manual_publish_due,refresh_zernio_analytics,refresh_zernio_followers`
-
-Jobs already queued in ogen's in-process River finish there. Once
-`river_job` in ogen's schema holds no live rows of any kind, ogen's River
-can be removed (CON-332 phase 7).
-
-**Rollback.** Roll back river-service to the previous image. Jobs of a kind the
-older build doesn't know are refused at `Enqueue` and wait in ogen's outbox;
-remove the kind from `OUTBOX_RELAY_KINDS` to route it back to ogen's in-process
-queue while that path still exists.
+**ogen's old River tables.** ogen ran its own River until every kind moved
+here (CON-332 phase 7). The ogen migration that drops those tables refuses to
+run while any of them still holds a live job, so deploying it early fails
+the ogen release instead of losing work.
 
 ## Development
 
