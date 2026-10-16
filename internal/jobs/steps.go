@@ -16,6 +16,7 @@ import (
 
 	jobrpcv1 "github.com/ogen-app/river-service/gen/jobrpc/v1"
 	"github.com/ogen-app/river-service/internal/logging"
+	"github.com/ogen-app/river-service/internal/queue"
 )
 
 // maxSteps bounds one run of a step-run job, so a misbehaving flow can't loop
@@ -133,13 +134,16 @@ func (w *stepWorker[A]) finish(ctx context.Context, kind string, done *jobrpcv1.
 		}
 	}
 	if len(done.GetEnqueue()) > 0 {
+		// Children continue this job's trace and request, as a job enqueued
+		// through JobService continues ogen's.
+		md := queue.EncodeMetadata(ctx, logging.RequestID(ctx))
 		params := make([]river.InsertManyParams, 0, len(done.GetEnqueue()))
 		for _, c := range done.GetEnqueue() {
 			args, err := w.children.args(c.GetKind(), c.GetArgs())
 			if err != nil {
 				return err
 			}
-			params = append(params, river.InsertManyParams{Args: args})
+			params = append(params, river.InsertManyParams{Args: args, InsertOpts: &river.InsertOpts{Metadata: md}})
 		}
 		client, err := river.ClientFromContextSafely[pgx.Tx](ctx)
 		if err != nil {

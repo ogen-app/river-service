@@ -9,6 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
+
 	jobrpcv1 "github.com/ogen-app/river-service/gen/jobrpc/v1"
 )
 
@@ -111,5 +117,42 @@ func TestTransferStreamsTheFile(t *testing.T) {
 	t.Cleanup(missing.Close)
 	if res := executor("http://unused", keys{}).Transfer(t.Context(), &jobrpcv1.MediaTransfer{SourceUrl: missing.URL, UploadUrl: dst.URL}); res.GetError() == "" {
 		t.Errorf("unreadable source = %v, want an error", res)
+	}
+}
+
+func TestFetchesAreTracedWithoutSendingTheTrace(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	prevTP, prevProp := otel.GetTracerProvider(), otel.GetTextMapPropagator()
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	t.Cleanup(func() { otel.SetTracerProvider(prevTP); otel.SetTextMapPropagator(prevProp) })
+
+	var sent string
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { sent = r.Header.Get("traceparent") }))
+	t.Cleanup(srv.Close)
+
+	ctx, job := tp.Tracer("test").Start(t.Context(), "job process_url")
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
+	res, err := (&http.Client{Transport: untracedOutbound(http.DefaultTransport)}).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	// A refused fetch is traced too.
+	_ = executor("http://unused", keys{}).HTTP(ctx, &jobrpcv1.HttpCall{Url: srv.URL})
+	job.End()
+
+	if sent != "" {
+		t.Errorf("fetch sent traceparent %q to an outside host", sent)
+	}
+	var fetches int
+	for _, s := range recorder.Ended() {
+		if s.SpanKind() == trace.SpanKindClient && s.Parent().SpanID() == job.SpanContext().SpanID() {
+			fetches++
+		}
+	}
+	if fetches != 2 {
+		t.Errorf("%d fetch spans under the job, want 2 (one served, one refused)", fetches)
 	}
 }
