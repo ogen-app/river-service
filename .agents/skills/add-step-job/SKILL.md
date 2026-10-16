@@ -89,5 +89,5 @@ Run `make lint` and `go test -race ./...`.
 
 ## Deploy order
 
-proto tag → ogen (steps or maintenance task) → river-service (this) → add the
-kind to ogen's `OUTBOX_RELAY_KINDS`.
+proto tag → ogen (steps or maintenance task) → river-service (this). Until
+this service knows the kind, ogen's outbox holds its jobs.
