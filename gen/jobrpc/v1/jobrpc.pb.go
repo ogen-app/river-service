@@ -82,7 +82,8 @@ func (EmailOutcome) EnumDescriptor() ([]byte, []int) {
 type LeaseRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// One of "zernio_api_key", "gemini_api_key", "resend_api_key",
-	// "firecrawl_api_key".
+	// "firecrawl_api_key", or "harbor_webhook_secret" (the key river-service
+	// signs Harbor's new-tenant webhook with).
 	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

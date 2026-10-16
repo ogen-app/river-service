@@ -26,7 +26,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// CredentialService lends river-service the vendor API keys a job needs. ogen
+// CredentialService lends river-service the keys a job needs: vendor API
+// keys, and the Harbor webhook signing key. ogen
 // keeps them encrypted and rotates them through Harbor; a lease is held in
 // memory only and renewed before it expires, so a rotation reaches
 // river-service within one lease.
@@ -59,7 +60,8 @@ func (c *credentialServiceClient) Lease(ctx context.Context, in *LeaseRequest, o
 // All implementations must embed UnimplementedCredentialServiceServer
 // for forward compatibility.
 //
-// CredentialService lends river-service the vendor API keys a job needs. ogen
+// CredentialService lends river-service the keys a job needs: vendor API
+// keys, and the Harbor webhook signing key. ogen
 // keeps them encrypted and rotates them through Harbor; a lease is held in
 // memory only and renewed before it expires, so a rotation reaches
 // river-service within one lease.
