@@ -55,14 +55,20 @@ message. Periodic: `queue.RegisterPeriodic(reg, worker, cfg.<Cadence>, <Kind>Arg
 with a cadence env var named as in ogen (zero turns it off). Call the family's
 register function from `jobs.go`.
 
-**Timeouts.** One attempt covers the whole step loop. Keep it below
-`RESCUE_STUCK_JOBS_AFTER` (30 min); work longer than that must checkpoint in
-ogen and resume across attempts (audio does). The default is 60 s.
+**Timeouts.** One attempt covers the whole step loop. A deploy cancels any
+attempt still running at the soft stop (240 s, inside the 300 s drain), and
+the job restarts without its step state. So keep each step short, and have
+ogen record progress in its own rows after each one (submit records every
+finished upload, audio every transcribed segment, ingestion its staged
+chunks): the restarted attempt resumes from there instead of redoing the
+work. The attempt timeout is only the cap for a call that hangs; it must stay
+below `RESCUE_STUCK_JOBS_AFTER` (30 min). The default is 60 s.
 
 ## Step 3: Behaviour you get for free
 
 - The loop asks ogen for each step, carries out HTTP/sidecar/transfer
-  actions (`internal/actions`), sleeps on `Wait`, snoozes on a retry with a
+  actions (`internal/actions`), sleeps on a `Wait` of up to 30 s (a longer
+  one is a snooze), snoozes on a retry with a
   delay, and enqueues children and cancels matches on done.
 - ogen busy (`RESOURCE_EXHAUSTED`) or without the kind yet (`UNIMPLEMENTED`)
   snoozes the job: no attempt used.

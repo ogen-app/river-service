@@ -90,7 +90,13 @@ func (w *stepWorker[A]) Work(ctx context.Context, job *river.Job[A]) error {
 		case *jobrpcv1.StepResponse_Sidecar:
 			result = w.actions.Sidecar(ctx, next.Sidecar)
 		case *jobrpcv1.StepResponse_Wait:
-			if err := sleep(ctx, next.Wait.AsDuration()); err != nil {
+			wait := next.Wait.AsDuration()
+			if wait > maxInProcessWait {
+				// Don't hold a worker through a long wait: snooze, and the job
+				// restarts without state, as it does after a deploy.
+				return river.JobSnooze(wait)
+			}
+			if err := sleep(ctx, wait); err != nil {
 				return err
 			}
 			result = nil
@@ -107,6 +113,10 @@ func (w *stepWorker[A]) Work(ctx context.Context, job *river.Job[A]) error {
 	}
 	return fmt.Errorf("%s: no result after %d steps", job.Kind, maxSteps)
 }
+
+// maxInProcessWait is the longest Wait the loop sleeps through; a longer one
+// is a snooze.
+const maxInProcessWait = 30 * time.Second
 
 // sleep waits d, or until ctx ends. A stop that cuts the wait leaves the job
 // to the drain middleware, which snoozes it; the next run picks up the work

@@ -140,6 +140,8 @@ func TestStepWorkerOutcomes(t *testing.T) {
 		{name: "ogen without the kind yet", steps: &scriptedSteps{err: status.Error(codes.Unimplemented, "x")}, wantSnooze: true},
 		{name: "retry later", steps: &scriptedSteps{script: []*jobrpcv1.StepResponse{{Next: &jobrpcv1.StepResponse_Retry{Retry: &jobrpcv1.StepRetry{Reason: "zernio 503"}}}}}, wantErr: true},
 		{name: "retry after", steps: &scriptedSteps{script: []*jobrpcv1.StepResponse{{Next: &jobrpcv1.StepResponse_Retry{Retry: &jobrpcv1.StepRetry{After: durationpb.New(time.Minute)}}}}}, wantSnooze: true},
+		{name: "short wait", steps: &scriptedSteps{script: []*jobrpcv1.StepResponse{{Next: &jobrpcv1.StepResponse_Wait{Wait: durationpb.New(time.Millisecond)}}, doneWith("ok")}}},
+		{name: "long wait", steps: &scriptedSteps{script: []*jobrpcv1.StepResponse{{Next: &jobrpcv1.StepResponse_Wait{Wait: durationpb.New(10 * time.Minute)}}}}, wantSnooze: true},
 		{name: "endless loop", steps: &scriptedSteps{byKind: func(*jobrpcv1.StepRequest) *jobrpcv1.StepResponse { return call("/again") }}, wantErr: true},
 	}
 	for _, tt := range tests {
