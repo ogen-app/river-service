@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1648" viewBox="0 0 900 1648" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <style>
+    .title { font-size: 22px; font-weight: 700; fill: #111827; }
+    .subtitle { font-size: 14px; fill: #4b5563; }
+    .h { font-size: 14.5px; font-weight: 700; fill: #111827; }
+    .t { font-size: 13.5px; fill: #1f2937; }
+    .s { font-size: 12.5px; fill: #4b5563; }
+    .code { font-size: 12.5px; fill: #1f2937; font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+    .lbl { font-size: 12px; font-weight: 600; }
+    .badge-t { font-size: 12px; font-weight: 700; fill: #ffffff; }
+    .ogen { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; }
+    .ogen-panel { fill: #dbeafe; stroke: #2563eb; stroke-width: 1.5; }
+    .ogen-inner { fill: #ffffff; stroke: #93c5fd; stroke-width: 1.5; }
+    .rs { fill: #ecfdf5; stroke: #059669; stroke-width: 2; }
+    .rs-inner { fill: #ffffff; stroke: #6ee7b7; stroke-width: 1.5; }
+    .db { fill: #fffbeb; stroke: #d97706; stroke-width: 2; }
+    .db-inner { fill: #ffffff; stroke: #fcd34d; stroke-width: 1.5; }
+    .ext { fill: #f3f4f6; stroke: #6b7280; stroke-width: 1.5; }
+    .ok { fill: #f0fdf4; stroke: #16a34a; stroke-width: 2; }
+    .sched { stroke: #7c3aed; }
+    .exec { stroke: #059669; }
+    .res { stroke: #2563eb; }
+    .arrow { fill: none; stroke-width: 2.2; }
+    .dash { stroke-dasharray: 7 5; }
+  </style>
+  <defs><marker id="m-sched" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/></marker><marker id="m-exec" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#059669"/></marker><marker id="m-res" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker></defs>
+  <rect width="900" height="1648" fill="#ffffff"/>
+  <text x="24" y="38" class="title">Background jobs: ogen decides, river-service runs</text>
+  <text x="24" y="62" class="subtitle">ogen keeps every decision, write and key. river-service owns the queue, the schedule</text>
+  <text x="24" y="81" class="subtitle">and every outside call. Numbers follow one job end to end.</text>
+  <path d="M24,108 L60,108" class="arrow sched" marker-end="url(#m-sched)"/>
+  <text x="68" y="112" class="t">scheduling</text>
+  <path d="M194,108 L230,108" class="arrow exec" marker-end="url(#m-exec)"/>
+  <text x="238" y="112" class="t">executing</text>
+  <path d="M364,108 L400,108" class="arrow res" marker-end="url(#m-res)"/>
+  <text x="408" y="112" class="t">results</text>
+  <path d="M534,108 L570,108" class="arrow res dash" marker-end="url(#m-res)"/>
+  <text x="578" y="112" class="t">carried inside the next Step call</text>
+  <rect x="16" y="128" width="868" height="456" rx="10" class="ogen"/>
+  <text x="36" y="154" class="h">ogen (API, system of record)</text>
+  <text x="36" y="172" class="s">domain logic, data, vendor keys, user-facing events. No River: jobs leave through the outbox.</text>
+  <rect x="36" y="188" width="230" height="64" rx="8" class="ogen-inner"/>
+  <text x="50" y="210" class="h">Handlers &amp; services</text>
+  <text x="50" y="230" class="s">schedule post, upload, signup…</text>
+  <rect x="306" y="188" width="240" height="64" rx="8" class="ogen-inner"/>
+  <text x="320" y="210" class="h">Enqueuer</text>
+  <text x="320" y="230" class="s">writes a job_outbox row in the</text>
+  <text x="320" y="246" class="s">caller's transaction</text>
+  <rect x="586" y="188" width="250" height="64" rx="8" class="ogen-inner"/>
+  <text x="600" y="210" class="h">Outbox relay</text>
+  <text x="600" y="230" class="s">LISTEN/NOTIFY + poll, SKIP LOCKED,</text>
+  <text x="600" y="246" class="s">backoff; trace context + request id</text>
+  <path d="M266,220 L304,220" class="arrow sched" marker-end="url(#m-sched)"/>
+  <circle cx="285" cy="202" r="11" fill="#7c3aed"/>
+  <text x="285" y="206.5" class="badge-t" text-anchor="middle">1</text>
+  <path d="M546,220 L584,220" class="arrow sched" marker-end="url(#m-sched)"/>
+  <circle cx="565" cy="202" r="11" fill="#7c3aed"/>
+  <text x="565" y="206.5" class="badge-t" text-anchor="middle">2</text>
+  <rect x="36" y="268" width="390" height="80" rx="8" class="ogen-inner"/>
+  <text x="50" y="288" class="h">At boot</text>
+  <text x="50" y="308" class="s">RetireRiver: River's leftover jobs move to the</text>
+  <text x="50" y="323" class="s">outbox, River's tables are dropped (one tx)</text>
+  <text x="50" y="338" class="s">no boot without the job settings (JOBS_DISABLED)</text>
+  <rect x="446" y="268" width="390" height="80" rx="8" class="ogen-inner"/>
+  <text x="460" y="288" class="h">Detached analysis runs</text>
+  <text x="460" y="308" class="s">the model call runs here; heartbeat + outcome on</text>
+  <text x="460" y="323" class="s">the lens row. The job polls with Wait; a restarted</text>
+  <text x="460" y="338" class="s">job adopts the run in flight.</text>
+  <rect x="36" y="364" width="800" height="216" rx="10" class="ogen-panel"/>
+  <text x="52" y="386" class="h">Job RPC listener :9093 (own token, limiter, MaxConnectionAge)</text>
+  <rect x="52" y="398" width="418" height="170" rx="8" class="ogen-inner"/>
+  <text x="66" y="420" class="h">JobStepService.Step</text>
+  <text x="66" y="440" class="s">kind, args, state, last raw result →</text>
+  <text x="66" y="457" class="s">• decodes the result with the ordinary client</text>
+  <text x="66" y="474" class="s">• writes rows, post logs, chunks; SSE + notifications</text>
+  <text x="66" y="491" class="s">• plans the next action by capturing the request</text>
+  <text x="66" y="508" class="s">• answers: action · Wait · Done (children, cancels)</text>
+  <text x="66" y="525" class="s">    · Retry (error, or After = snooze)</text>
+  <circle cx="452" cy="462" r="11" fill="#2563eb"/>
+  <text x="452" y="466.5" class="badge-t" text-anchor="middle">10</text>
+  <rect x="486" y="398" width="334" height="52" rx="8" class="ogen-inner"/>
+  <text x="500" y="418" class="h">MaintenanceService.Run</text>
+  <text x="500" y="438" class="s">DB-only sweeps run whole: cleanups, reconcile…</text>
+  <rect x="486" y="457" width="334" height="52" rx="8" class="ogen-inner"/>
+  <text x="500" y="477" class="h">EmailJobService</text>
+  <text x="500" y="497" class="s">PrepareEmail (render) · RecordEmailOutcome</text>
+  <rect x="486" y="516" width="334" height="52" rx="8" class="ogen-inner"/>
+  <text x="500" y="536" class="h">CredentialService.Lease</text>
+  <text x="500" y="556" class="s">allowlisted keys, short TTL, memory only</text>
+  <rect x="16" y="624" width="868" height="382" rx="10" class="rs"/>
+  <text x="486" y="650" class="h">river-service (separate repo)</text>
+  <text x="486" y="668" class="s">no domain logic, no storage credentials, no keys at rest</text>
+  <rect x="52" y="684" width="418" height="178" rx="8" class="rs-inner"/>
+  <text x="66" y="706" class="h">Generic step worker (every kind)</text>
+  <text x="66" y="726" class="s">loop: Step(state, result) → ogen,</text>
+  <text x="66" y="743" class="s">            carry out the action it answers,</text>
+  <text x="66" y="760" class="s">            pass the raw result to the next Step</text>
+  <text x="66" y="777" class="s">until Done: enqueue children (they inherit the</text>
+  <text x="66" y="794" class="s">            trace and request id), cancel matches</text>
+  <text x="66" y="811" class="s">or Retry; ogen busy / older → snooze, no attempt</text>
+  <rect x="486" y="684" width="334" height="56" rx="8" class="rs-inner"/>
+  <text x="500" y="704" class="h">JobService.Enqueue :9092</text>
+  <text x="500" y="724" class="s">idempotent on the outbox id</text>
+  <rect x="486" y="764" width="334" height="98" rx="8" class="rs-inner"/>
+  <text x="500" y="784" class="h">River (river_service schema)</text>
+  <text x="500" y="804" class="s">the leader schedules the periodic sweeps</text>
+  <text x="500" y="821" class="s">river-service: default · analysis</text>
+  <text x="500" y="838" class="s">river-service-heavy: audio · image · ingest</text>
+  <path d="M653,740 L653,762" class="arrow sched" marker-end="url(#m-sched)"/>
+  <circle cx="676" cy="751" r="11" fill="#7c3aed"/>
+  <text x="676" y="755.5" class="badge-t" text-anchor="middle">4</text>
+  <path d="M486,824 L472,824" class="arrow sched" marker-end="url(#m-sched)"/>
+  <circle cx="478" cy="806" r="11" fill="#7c3aed"/>
+  <text x="478" y="810.5" class="badge-t" text-anchor="middle">5</text>
+  <rect x="52" y="880" width="418" height="110" rx="8" class="rs-inner"/>
+  <text x="66" y="900" class="h">Actions</text>
+  <text x="66" y="920" class="s">• HTTP to Zernio / Gemini / Firecrawl with a leased</text>
+  <text x="66" y="937" class="s">    key; redirects are handed back, not followed</text>
+  <text x="66" y="954" class="s">• fetch of an outside URL via the SSRF guard</text>
+  <text x="66" y="971" class="s">• sidecar gRPC · media transfer · Wait (≤30 s sleeps)</text>
+  <rect x="486" y="880" width="334" height="110" rx="8" class="rs-inner"/>
+  <text x="500" y="900" class="h">Deploys &amp; tracing</text>
+  <text x="500" y="920" class="s">soft stop 240 s → cut jobs snooze and resume;</text>
+  <text x="500" y="937" class="s">drain 300 s; progress lives in ogen</text>
+  <text x="500" y="954" class="s">one trace id: request → outbox → job →</text>
+  <text x="500" y="971" class="s">ogen's step RPCs → child jobs</text>
+  <path d="M200,862 L200,878" class="arrow exec" marker-end="url(#m-exec)"/>
+  <circle cx="222" cy="871" r="11" fill="#059669"/>
+  <text x="222" y="875.5" class="badge-t" text-anchor="middle">8</text>
+  <path d="M836,220 L862,220 L862,712 L822,712" class="arrow sched" marker-end="url(#m-sched)"/>
+  <circle cx="862" cy="598" r="11" fill="#7c3aed"/>
+  <text x="862" y="602.5" class="badge-t" text-anchor="middle">3</text>
+  <path d="M110,684 L110,570" class="arrow exec" marker-end="url(#m-exec)"/>
+  <circle cx="110" cy="604" r="11" fill="#059669"/>
+  <text x="110" y="608.5" class="badge-t" text-anchor="middle">6</text>
+  <path d="M190,568 L190,682" class="arrow exec" marker-end="url(#m-exec)"/>
+  <circle cx="190" cy="604" r="11" fill="#059669"/>
+  <text x="190" y="608.5" class="badge-t" text-anchor="middle">7</text>
+  <path d="M270,684 L270,570" class="arrow res dash" marker-end="url(#m-res)"/>
+  <circle cx="270" cy="604" r="11" fill="#2563eb"/>
+  <text x="270" y="608.5" class="badge-t" text-anchor="middle">9</text>
+  <text x="300" y="608" class="lbl" fill="#2563eb">raw result</text>
+  <path d="M400,684 L400,598 L478,598 L478,542 L484,542" class="arrow exec dash" marker-end="url(#m-exec)"/>
+  <path d="M478,483 L484,483" class="arrow exec dash" marker-end="url(#m-exec)"/>
+  <path d="M478,424 L484,424" class="arrow exec dash" marker-end="url(#m-exec)"/>
+  <line x1="478" y1="542" x2="478" y2="424" class="arrow exec dash"/>
+  <text x="408" y="616" class="lbl" fill="#059669">run · prepare · lease</text>
+  <text x="24" y="1046" class="h">Outside services</text>
+  <rect x="24" y="1058" width="162" height="52" rx="8" class="ext"/>
+  <text x="36" y="1080" class="h">Zernio</text>
+  <text x="36" y="1099" class="s">posts, media, analytics</text>
+  <rect x="196" y="1058" width="162" height="52" rx="8" class="ext"/>
+  <text x="208" y="1080" class="h">Gemini</text>
+  <text x="208" y="1099" class="s">embeddings</text>
+  <rect x="369" y="1058" width="162" height="52" rx="8" class="ext"/>
+  <text x="381" y="1080" class="h">Firecrawl</text>
+  <text x="381" y="1099" class="s">URL scrapes</text>
+  <rect x="541" y="1058" width="162" height="52" rx="8" class="ext"/>
+  <text x="553" y="1080" class="h">Resend</text>
+  <text x="553" y="1099" class="s">email</text>
+  <rect x="714" y="1058" width="162" height="52" rx="8" class="ext"/>
+  <text x="726" y="1080" class="h">Web pages</text>
+  <text x="726" y="1099" class="s">scraped images</text>
+  <rect x="24" y="1120" width="421" height="52" rx="8" class="ext"/>
+  <text x="36" y="1142" class="h">Sidecars (private network)</text>
+  <text x="36" y="1161" class="s">pdf · documents · image · audio, via presigned links</text>
+  <rect x="455" y="1120" width="421" height="52" rx="8" class="ext"/>
+  <text x="467" y="1142" class="h">Object storage</text>
+  <text x="467" y="1161" class="s">reached only through links ogen signs</text>
+  <path d="M200,990 L200,1056" class="arrow exec" marker-end="url(#m-exec)"/>
+  <rect x="16" y="1196" width="868" height="196" rx="10" class="db"/>
+  <text x="36" y="1222" class="h">Postgres (one cluster, two schemas, two roles)</text>
+  <rect x="36" y="1236" width="520" height="140" rx="8" class="db-inner"/>
+  <text x="50" y="1258" class="h">ogen schema (ogen role)</text>
+  <text x="50" y="1282" class="code">job_outbox</text>
+  <text x="250" y="1282" class="s">jobs waiting for the relay</text>
+  <text x="50" y="1300" class="code">asset_chunk_stages</text>
+  <text x="250" y="1300" class="s">chunks + vectors between ingest steps</text>
+  <text x="50" y="1318" class="code">asset_analyses.run_*</text>
+  <text x="250" y="1318" class="s">detached analysis run slot</text>
+  <text x="50" y="1336" class="code">tenants.*_teardown_lease</text>
+  <text x="250" y="1336" class="s">blocks a restore during teardown</text>
+  <text x="50" y="1364" class="s">no river_* tables; ogen never reads River's schema</text>
+  <rect x="572" y="1236" width="292" height="140" rx="8" class="db-inner"/>
+  <text x="586" y="1258" class="h">river_service schema</text>
+  <text x="586" y="1280" class="s">river_job · river_leader · …</text>
+  <text x="586" y="1298" class="s">owned by the river_service role,</text>
+  <text x="586" y="1316" class="s">no grants on ogen's schema,</text>
+  <text x="586" y="1334" class="s">migrated under an advisory lock</text>
+  <rect x="16" y="1412" width="868" height="220" rx="10" class="ok"/>
+  <text x="36" y="1438" class="h">One job, end to end</text>
+  <circle cx="47" cy="1460" r="11" fill="#7c3aed"/>
+  <text x="47" y="1464.5" class="badge-t" text-anchor="middle">1</text>
+  <text x="66" y="1464" class="t">A handler changes data and enqueues.</text>
+  <circle cx="47" cy="1484" r="11" fill="#7c3aed"/>
+  <text x="47" y="1488.5" class="badge-t" text-anchor="middle">2</text>
+  <text x="66" y="1488" class="t">The outbox row commits with the change.</text>
+  <circle cx="47" cy="1508" r="11" fill="#7c3aed"/>
+  <text x="47" y="1512.5" class="badge-t" text-anchor="middle">3</text>
+  <text x="66" y="1512" class="t">The relay calls JobService.Enqueue.</text>
+  <circle cx="47" cy="1532" r="11" fill="#7c3aed"/>
+  <text x="47" y="1536.5" class="badge-t" text-anchor="middle">4</text>
+  <text x="66" y="1536" class="t">river-service inserts the River job.</text>
+  <circle cx="47" cy="1556" r="11" fill="#7c3aed"/>
+  <text x="47" y="1560.5" class="badge-t" text-anchor="middle">5</text>
+  <text x="66" y="1560" class="t">A worker picks it up from its queue.</text>
+  <circle cx="467" cy="1460" r="11" fill="#059669"/>
+  <text x="467" y="1464.5" class="badge-t" text-anchor="middle">6</text>
+  <text x="486" y="1464" class="t">The worker calls ogen's Step.</text>
+  <circle cx="467" cy="1484" r="11" fill="#059669"/>
+  <text x="467" y="1488.5" class="badge-t" text-anchor="middle">7</text>
+  <text x="486" y="1488" class="t">ogen answers with the next action.</text>
+  <circle cx="467" cy="1508" r="11" fill="#059669"/>
+  <text x="467" y="1512.5" class="badge-t" text-anchor="middle">8</text>
+  <text x="486" y="1512" class="t">The worker makes the call or waits.</text>
+  <circle cx="467" cy="1532" r="11" fill="#2563eb"/>
+  <text x="467" y="1536.5" class="badge-t" text-anchor="middle">9</text>
+  <text x="486" y="1536" class="t">The raw result rides in the next Step.</text>
+  <circle cx="467" cy="1556" r="11" fill="#2563eb"/>
+  <text x="467" y="1560.5" class="badge-t" text-anchor="middle">10</text>
+  <text x="486" y="1560" class="t">ogen decodes it and writes the outcome.</text>
+  <text x="36" y="1600" class="s">Sweeps that only touch ogen's tables skip 6–9: one MaintenanceService.Run per tick.</text>
+  <text x="36" y="1618" class="s">A deploy of either side never loses a job: steps are small, progress is checkpointed in ogen.</text>
+</svg>
