@@ -193,7 +193,7 @@ the ogen release instead of losing work.
 make build        # binary
 make test         # unit tests (database tests skip without TEST_DATABASE_DSN)
 make test-db      # all tests against a throwaway Postgres container
-make lint         # gofmt + go vet
+make lint         # golangci-lint (gofmt, goimports, vet, staticcheck, …), as in CI
 make proto        # regenerate gen/ from the pinned contract
 make proto PROTO_SOURCE=../proto/proto   # from a local proto checkout
 ```
