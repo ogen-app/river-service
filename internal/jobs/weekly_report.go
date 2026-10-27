@@ -3,6 +3,7 @@ package jobs
 import (
 	"github.com/riverqueue/river"
 
+	jobsv1 "github.com/ogen-app/river-service/gen/jobs/v1"
 	"github.com/ogen-app/river-service/internal/config"
 	"github.com/ogen-app/river-service/internal/queue"
 )
@@ -18,7 +19,9 @@ func (WeeklyReportDispatchArgs) Kind() string                 { return "weekly_r
 func (WeeklyReportDispatchArgs) InsertOpts() river.InsertOpts { return sweepOpts() }
 
 // BuildWeeklyReportArgs builds one workspace's report for the week starting
-// WeekStart and has ogen queue the owners' emails.
+// WeekStart and has ogen queue the owners' emails. The dispatch fans out into
+// these; ogen enqueues one only to hand over a build its own queue left
+// unfinished.
 type BuildWeeklyReportArgs struct {
 	TenantID  string `json:"tenant_id"`
 	WeekStart string `json:"week_start"`
@@ -36,6 +39,8 @@ func (BuildWeeklyReportArgs) InsertOpts() river.InsertOpts {
 
 func registerWeeklyReport(reg *queue.Registry, cfg *config.Config, d stepDeps) {
 	queue.RegisterPeriodic(reg, newStepWorker[WeeklyReportDispatchArgs](d, fanOutTimeout), cfg.WeeklyReportCheckEvery, WeeklyReportDispatchArgs{})
-	queue.RegisterInternal(reg, newStepWorker[BuildWeeklyReportArgs](d, tenantChildTimeout))
+	queue.Register(reg, newStepWorker[BuildWeeklyReportArgs](d, tenantChildTimeout), func(m *jobsv1.BuildWeeklyReportArgs) BuildWeeklyReportArgs {
+		return BuildWeeklyReportArgs{TenantID: m.GetTenantId(), WeekStart: m.GetWeekStart()}
+	})
 	d.children.build[BuildWeeklyReportArgs{}.Kind()] = childOf[BuildWeeklyReportArgs]()
 }
