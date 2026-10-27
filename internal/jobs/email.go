@@ -111,7 +111,9 @@ func (w *sendEmailWorker) Work(ctx context.Context, job *river.Job[SendEmailArgs
 		return retryLater(err)
 	}
 	if key == "" {
-		return w.record(ctx, args, jobrpcv1.EmailOutcome_EMAIL_OUTCOME_SKIPPED_DISABLED, nil, "", "")
+		// The prepared message carries the recipient ogen resolved, which the
+		// skipped log needs.
+		return w.record(ctx, args, jobrpcv1.EmailOutcome_EMAIL_OUTCOME_SKIPPED_DISABLED, msg, "", "")
 	}
 
 	id, err := w.mailer.Send(ctx, key, resend.Message{

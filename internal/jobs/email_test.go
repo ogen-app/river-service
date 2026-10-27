@@ -124,6 +124,11 @@ func TestSendEmailWorker(t *testing.T) {
 			if got := tt.ogen.recorded[0]; got.GetArgs().GetIdempotencyKey() != "welcome:u1" {
 				t.Errorf("recorded args = %v", got.GetArgs())
 			}
+			// Every outcome carries the prepared message: ogen logs the
+			// recipient it resolved from it, a skipped send included.
+			if got := tt.ogen.recorded[0].GetMessage().GetTo(); got == "" {
+				t.Errorf("recorded outcome has no recipient")
+			}
 		})
 	}
 }
