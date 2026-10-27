@@ -64,7 +64,30 @@ func (BackfillAssetAnalysesArgs) InsertOpts() river.InsertOpts {
 	return opts
 }
 
+// DistillAssetIdeasArgs runs one "distill more ideas" run; the run row in
+// ogen carries the lens, focus and count. Its model call runs detached in
+// ogen, like an analysis.
+type DistillAssetIdeasArgs struct {
+	TenantID string `json:"tenant_id" river:"unique"`
+	RunID    string `json:"run_id"    river:"unique"`
+}
+
+func (DistillAssetIdeasArgs) Kind() string { return "distill_asset_ideas" }
+
+// InsertOpts: a run is queued once; a second insert while it waits or runs
+// folds into it.
+func (DistillAssetIdeasArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{Queue: config.QueueAnalysis, MaxAttempts: 5, UniqueOpts: river.UniqueOpts{ByArgs: true, ByState: waitingStates}}
+}
+
+// distillIdeasTimeout covers ogen's 10-minute detached run plus the wait
+// around it.
+const distillIdeasTimeout = 15 * time.Minute
+
 func registerAnalysis(reg *queue.Registry, cfg *config.Config, d stepDeps, maintenance Maintenance) {
+	queue.Register(reg, newStepWorker[DistillAssetIdeasArgs](d, distillIdeasTimeout), func(m *jobsv1.DistillAssetIdeasArgs) DistillAssetIdeasArgs {
+		return DistillAssetIdeasArgs{TenantID: m.GetTenantId(), RunID: m.GetRunId()}
+	})
 	queue.Register(reg, newStepWorker[AnalyzeAssetArgs](d, analyzeTimeout), func(m *jobsv1.AnalyzeAssetArgs) AnalyzeAssetArgs {
 		a := AnalyzeAssetArgs{TenantID: m.GetTenantId(), AssetID: m.GetAssetId(), Reason: m.GetReason()}
 		if m.CampaignId != nil {

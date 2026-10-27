@@ -27,7 +27,10 @@ is refused by `Enqueue` with `UNIMPLEMENTED`, and ogen keeps it in its outbox.
 | Publishing | `submit_post_to_zernio`, `poll_zernio_status`, `cancel_zernio_job`, `withdraw_zernio_post`, `post_first_comment` | Step-run jobs. Submit streams each attachment from storage to Zernio (presign, then a media transfer). Polls snooze themselves until the post is published or fails. Withdrawing a post cancels its pending polls. |
 | Publishing sweeps | `reconcile_scheduled_posts`, `detect_manual_publish_due`, `sweep_zernio_orphans` (fans out into `sweep_zernio_orphans_profile`), `refresh_zernio_analytics` (into `refresh_zernio_analytics_tenant`), `refresh_zernio_followers` (into `refresh_zernio_followers_tenant`) | Reconcile and manual-publish-due run in ogen through `MaintenanceService.Run`. The others fan out into one step-run job per tenant profile. |
 | Ingestion | `process_pdf`, `process_document`, `process_url` (queue `ingest`), `process_image`, `reembed_image` (queue `image`), `process_audio` (queue `audio`) | Step-run jobs. Sidecar calls (pdf, documents, image, audio) go out from here: unary, or with the stored original streamed from storage. Gemini embeds use a leased key and Firecrawl scrapes too, and page images are fetched through the SSRF guard. ogen stages the parsed chunks between steps and commits them when the run ends. Image and audio checkpoint their progress in ogen, so an attempt cut short resumes where it stopped. |
-| Asset analysis | `analyze_asset`, `reanalyze_campaign`, `backfill_asset_analyses` (queue `analysis`) | The model calls run in ogen. `analyze_asset` asks ogen to start the lens's run detached, then waits on it with a poll every few seconds. A job restarted by a deploy finds the run in flight and waits on that one, so no deploy cuts a call. `reanalyze_campaign` is a single step. The backfill runs in ogen through `MaintenanceService.Run`. |
+| Asset analysis | `analyze_asset`, `reanalyze_campaign`, `distill_asset_ideas`, `backfill_asset_analyses` (queue `analysis`) | The model calls run in ogen. `analyze_asset` and `distill_asset_ideas` ask ogen to start the run detached, then wait on it with a poll every few seconds. A job restarted by a deploy finds the run in flight and waits on that one, so no deploy cuts a call. `reanalyze_campaign` is a single step. The backfill runs in ogen through `MaintenanceService.Run`. |
+| Brand distillation | `distill_brand`, `expire_brand_distills` (queue `analysis`) | Step-run job. ogen admits the run, the site map (Firecrawl) goes out from here, the job snoozes while the run's sources ingest, then the model stages run detached in ogen and the job waits on them. The expiry sweep runs in ogen. |
+| Weekly report | `weekly_report_dispatch` (fans out into `build_weekly_report`) | The hourly dispatch asks ogen which workspaces' Monday 09:00 has come; each build has ogen collect the week and queue the owners' `send_email` jobs, which come back here through the outbox. ogen's `WEEKLY_REPORT_ENABLED` decides whether anything is built. |
+| Billing | `billing_apply_scheduled_change`, `billing_reconcile` (fans out into `billing_resync_subscription`), `billing_webhook_events_sweep` | Lemon Squeezy calls go out from here with the key of the billing mode ogen runs in. A scheduled change pushes the plan switch an hour ahead (and reverts a push that landed after the owner kept the plan); ogen moves the tier at the effective time. The reconcile re-reads one subscription per child job and re-queues due changes; ogen skips it while billing is off. The webhook-log prune runs in ogen. |
 
 ### How a step-run job runs
 
@@ -89,12 +92,15 @@ job ogen enqueues reaches this service through ogen's outbox.
 | `NOTIFICATIONS_CLEANUP_EVERY` / `PENDING_UPLOAD_SWEEP_INTERVAL` | `24h` / `1h` | Cadence of those two sweeps; `0` turns one off. Post logs run hourly, login security daily and plugin pairings every 15 minutes. |
 | `ZERNIO_BASE_URL` / `ZERNIO_HTTP_TIMEOUT` | `https://zernio.com/api/v1` / `15s` | Zernio's API and per-call timeout. The key is leased from ogen; with none set, ogen ends Zernio jobs without doing anything. |
 | `GEMINI_BASE_URL` / `GEMINI_HTTP_TIMEOUT` | `https://generativelanguage.googleapis.com` / `60s` | Gemini's API (embeddings) and per-call timeout. Key leased from ogen. |
-| `FIRECRAWL_BASE_URL` / `FIRECRAWL_HTTP_TIMEOUT` | `https://api.firecrawl.dev` / `90s` | Firecrawl's API (URL scrapes) and per-call timeout. Key leased from ogen. |
+| `FIRECRAWL_BASE_URL` / `FIRECRAWL_HTTP_TIMEOUT` | `https://api.firecrawl.dev` / `90s` | Firecrawl's API (URL scrapes, site maps) and per-call timeout. Key leased from ogen. |
+| `LEMONSQUEEZY_BASE_URL` / `LEMONSQUEEZY_HTTP_TIMEOUT` | `https://api.lemonsqueezy.com/v1` / `15s` | Lemon Squeezy's API and per-call timeout, for the billing jobs. The key of the billing mode ogen runs in is leased from ogen. Point it where ogen's `LEMONSQUEEZY_BASE_URL` points. |
 | `FETCH_TIMEOUT` | `30s` | Fetch of outside content (an image on a scraped page). These fetches never reach private, shared (100.64.0.0/10), loopback or link-local addresses. |
 | `PDF_SERVICE_ADDR` / `DOCUMENTS_SERVICE_ADDR` / `IMAGE_SERVICE_ADDR` / `AUDIO_SERVICE_ADDR` | empty | Sidecar gRPC addresses, set on the heavy service. A sidecar left unset behaves as it does in ogen without it. |
 | `SIDECAR_MAX_RECV_BYTES` | `134217728` (128 MiB) | Largest sidecar response accepted |
 | `ZERNIO_HEALTH_CHECK_INTERVAL` | `6h` | Connection-health sweep cadence; `0` turns it off. |
 | `ANALYSIS_BACKFILL_INTERVAL` | `15m` | Asset-analysis backfill cadence; `0` turns it off. The batch size (`ANALYSIS_BACKFILL_BATCH`) stays in ogen. |
+| `BILLING_RECONCILE_INTERVAL` | `1h` | Billing reconcile cadence; `0` turns it off. The webhook-log prune runs daily and the brand-proposal expiry every 6 hours. |
+| `WEEKLY_REPORT_CHECK_EVERY` | `1h` | How often the weekly report looks for workspaces due; `0` turns it off. `WEEKLY_REPORT_ENABLED` and `WEEKLY_REPORT_LIMIT_PCT` stay in ogen. |
 | `RECONCILE_EVERY` / `MANUAL_PUBLISH_DUE_SWEEP_EVERY` | `5m` / `1h` | Cadence of the two publishing sweeps that run in ogen; `0` turns one off. |
 | `ZERNIO_ORPHAN_SWEEP_INTERVAL` / `ZERNIO_ANALYTICS_REFRESH_INTERVAL` / `ZERNIO_FOLLOWER_REFRESH_INTERVAL` | `1h` / `1h` / `24h` | Cadence of the Zernio sweeps; `0` turns one off. Whether the orphan sweep withdraws anything (`ZERNIO_ORPHAN_SWEEP_LIVE`) stays in ogen. |
 | `EMAIL_BASE_URL` / `EMAIL_HTTP_TIMEOUT` | `https://api.resend.com` / `15s` | Resend endpoint and per-call timeout. The API key is leased from ogen; with no key set in ogen, sends are logged as skipped. |
@@ -139,7 +145,9 @@ values: the two services share one schema and so one leader election, and
 whichever replica leads schedules every sweep.
 `river-service-heavy` only: `PDF_SERVICE_ADDR`, `DOCUMENTS_SERVICE_ADDR`,
 `IMAGE_SERVICE_ADDR`, `AUDIO_SERVICE_ADDR` (the sidecars' private
-addresses), `GEMINI_*` and `FIRECRAWL_*` overrides if any. Worker counts:
+addresses), `GEMINI_*` and `FIRECRAWL_*` overrides if any. The billing jobs
+and the brand site map run on `river-service`, so `LEMONSQUEEZY_*` and
+`FIRECRAWL_*` overrides go there too. Worker counts:
 start with the defaults (4 default, 4 analysis, 2 each heavy queue) and one
 replica of each; every analysis job holds a worker while ogen runs its model
 call, so `ANALYSIS_JOB_WORKERS` × replicas is how many analyses run at once.

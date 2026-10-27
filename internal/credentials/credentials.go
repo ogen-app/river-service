@@ -21,6 +21,8 @@ const (
 	Zernio    = "zernio_api_key"
 	Gemini    = "gemini_api_key"
 	Firecrawl = "firecrawl_api_key"
+	// LemonSqueezy is the key of the billing mode ogen runs in.
+	LemonSqueezy = "lemonsqueezy_api_key"
 )
 
 // renewBefore is how long before a lease ends it is renewed.
