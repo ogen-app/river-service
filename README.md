@@ -187,9 +187,11 @@ outbox until a build that knows them is back. Jobs already queued keep their
 place in River's tables, which a rollback doesn't touch.
 
 **ogen's old River tables.** ogen ran its own River until every kind moved
-here (CON-332 phase 7). The ogen migration that drops those tables refuses to
-run while any of them still holds a live job, so deploying it early fails
-the ogen release instead of losing work.
+here (CON-332 phase 7). The first ogen boot without River moves every job its
+River left unfinished into the job outbox, scheduled as it was, and drops
+River's tables in the same transaction, so nothing waits for a drain. Jobs a
+sweep fanned out into are not moved; the sweep's next tick here queues them
+again.
 
 ## Development
 
