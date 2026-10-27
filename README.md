@@ -37,13 +37,15 @@ is refused by `Enqueue` with `UNIMPLEMENTED`, and ogen keeps it in its outbox.
 Jobs that call outside services run on one generic worker (`internal/jobs/steps.go`):
 1. It asks ogen for the next step (`JobStepService.Step`).
 2. ogen answers with one of six things:
-   - an HTTP call, either to a named API (`zernio`, `gemini`, `firecrawl`, sent with that API's leased key; a redirect comes back as the result rather than being followed, so the key never goes elsewhere) or to an absolute URL fetched with no credentials through the SSRF guard
+   - an HTTP call, either to a named API (`zernio`, `gemini`, `firecrawl`, `lemonsqueezy`, sent with that API's leased key; a redirect comes back as the result rather than being followed, so the key never goes elsewhere) or to an absolute URL fetched with no credentials through the SSRF guard
    - a sidecar gRPC call, unary or client-streamed from a stored file
    - a media transfer from storage to an upload URL
    - a wait: up to 30 s the worker sleeps and steps again with the same state; a longer one is a snooze
    - done, optionally with child jobs to enqueue
    - retry, now or after a delay
 3. The worker carries it out (`internal/actions`) and passes the raw result to the next `Step`. A call to an API whose key isn't set in ogen is not made; the result says `credential_missing`, and ogen decides what that means.
+
+Each `Step` call has its own 2-minute deadline, well inside the deploy drain. A step is short (long model calls run detached in ogen), so a call that runs past it means ogen is stuck: the job snoozes and gives its worker back instead of holding it for the rest of a long attempt.
 
 ogen builds every request and decodes every response, so this service holds no domain logic: a new step-run kind is an args type plus one `newStepWorker` registration. A job cut short (a deploy, a crash) retries from the start, and every flow converges on a repeat.
 

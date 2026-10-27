@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -26,6 +27,13 @@ const maxSteps = 512
 // defaultStepTimeout bounds one attempt of a step-run job unless its kind sets
 // its own.
 const defaultStepTimeout = 60 * time.Second
+
+// stepRPCTimeout bounds one Step call to ogen, well inside the deploy drain.
+// A step is short (the long model calls run detached in ogen), so a call
+// that outlasts it means ogen is stuck: the job snoozes rather than hold a
+// worker for the rest of its attempt, which for a job waiting on a detached
+// run can be many minutes.
+const stepRPCTimeout = 2 * time.Minute
 
 // StepRunner is ogen's JobStepService.
 type StepRunner interface {
@@ -53,6 +61,8 @@ type stepWorker[A river.JobArgs] struct {
 	river.WorkerDefaults[A]
 	stepDeps
 	timeout time.Duration
+	// rpcTimeout bounds each Step call; zero means stepRPCTimeout.
+	rpcTimeout time.Duration
 }
 
 func newStepWorker[A river.JobArgs](d stepDeps, timeout time.Duration) *stepWorker[A] {
@@ -74,11 +84,13 @@ func (w *stepWorker[A]) Work(ctx context.Context, job *river.Job[A]) error {
 	var state []byte
 	var result *jobrpcv1.StepResult
 	for range maxSteps {
-		resp, err := w.ogen.Step(ctx, &jobrpcv1.StepRequest{
+		resp, err := w.step(ctx, &jobrpcv1.StepRequest{
 			Kind: job.Kind, Args: args, State: state, Result: result,
 			Attempt: int32(job.Attempt), MaxAttempts: int32(job.MaxAttempts),
 		})
 		if err != nil {
+			// A call cut by its own deadline is DEADLINE_EXCEEDED, so the
+			// job snoozes; one cut by the job's stop is not.
 			return retryLater(err)
 		}
 		state = resp.GetState()
@@ -112,6 +124,13 @@ func (w *stepWorker[A]) Work(ctx context.Context, job *river.Job[A]) error {
 		}
 	}
 	return fmt.Errorf("%s: no result after %d steps", job.Kind, maxSteps)
+}
+
+// step makes one Step call under its own deadline.
+func (w *stepWorker[A]) step(ctx context.Context, in *jobrpcv1.StepRequest) (*jobrpcv1.StepResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, cmp.Or(w.rpcTimeout, stepRPCTimeout))
+	defer cancel()
+	return w.ogen.Step(ctx, in)
 }
 
 // maxInProcessWait is the longest Wait the loop sleeps through; a longer one

@@ -403,3 +403,29 @@ func TestPublishingSweepsRegister(t *testing.T) {
 		}
 	}
 }
+
+// hungSteps never answers: each call waits for its deadline, as a stuck ogen
+// would, and fails the way gRPC does.
+type hungSteps struct{ calls int }
+
+func (h *hungSteps) Step(ctx context.Context, _ *jobrpcv1.StepRequest, _ ...grpc.CallOption) (*jobrpcv1.StepResponse, error) {
+	h.calls++
+	<-ctx.Done()
+	return nil, status.FromContextError(ctx.Err()).Err()
+}
+
+// TestStepWorkerBoundsEachCall checks a stuck ogen costs one call's deadline,
+// not the whole attempt: the job snoozes and gives its worker back.
+func TestStepWorkerBoundsEachCall(t *testing.T) {
+	steps := &hungSteps{}
+	w := newStepWorker[BootstrapZernioProfileArgs](stepDeps{ogen: steps, actions: &recordingActions{}, children: newChildKinds()}, time.Hour)
+	w.rpcTimeout = 20 * time.Millisecond
+	start := time.Now()
+	err := w.Work(t.Context(), bootstrapJob())
+	if _, snoozed := errors.AsType[*rivertype.JobSnoozeError](err); !snoozed {
+		t.Fatalf("err = %v, want a snooze", err)
+	}
+	if took := time.Since(start); took > time.Second || steps.calls != 1 {
+		t.Fatalf("took %v over %d calls, want one bounded call", took, steps.calls)
+	}
+}
