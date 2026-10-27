@@ -113,6 +113,9 @@ type EnqueueRequest struct {
 	//	*EnqueueRequest_ReembedImage
 	//	*EnqueueRequest_AnalyzeAsset
 	//	*EnqueueRequest_ReanalyzeCampaign
+	//	*EnqueueRequest_BillingApplyScheduledChange
+	//	*EnqueueRequest_DistillBrand
+	//	*EnqueueRequest_DistillAssetIdeas
 	Args isEnqueueRequest_Args `protobuf_oneof:"args"`
 	// Deduplicates retried deliveries. ogen sends the outbox row id.
 	IdempotencyKey string `protobuf:"bytes,100,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
@@ -314,6 +317,33 @@ func (x *EnqueueRequest) GetReanalyzeCampaign() *ReanalyzeCampaignArgs {
 	return nil
 }
 
+func (x *EnqueueRequest) GetBillingApplyScheduledChange() *BillingApplyScheduledChangeArgs {
+	if x != nil {
+		if x, ok := x.Args.(*EnqueueRequest_BillingApplyScheduledChange); ok {
+			return x.BillingApplyScheduledChange
+		}
+	}
+	return nil
+}
+
+func (x *EnqueueRequest) GetDistillBrand() *DistillBrandArgs {
+	if x != nil {
+		if x, ok := x.Args.(*EnqueueRequest_DistillBrand); ok {
+			return x.DistillBrand
+		}
+	}
+	return nil
+}
+
+func (x *EnqueueRequest) GetDistillAssetIdeas() *DistillAssetIdeasArgs {
+	if x != nil {
+		if x, ok := x.Args.(*EnqueueRequest_DistillAssetIdeas); ok {
+			return x.DistillAssetIdeas
+		}
+	}
+	return nil
+}
+
 func (x *EnqueueRequest) GetIdempotencyKey() string {
 	if x != nil {
 		return x.IdempotencyKey
@@ -407,6 +437,18 @@ type EnqueueRequest_ReanalyzeCampaign struct {
 	ReanalyzeCampaign *ReanalyzeCampaignArgs `protobuf:"bytes,17,opt,name=reanalyze_campaign,json=reanalyzeCampaign,proto3,oneof"`
 }
 
+type EnqueueRequest_BillingApplyScheduledChange struct {
+	BillingApplyScheduledChange *BillingApplyScheduledChangeArgs `protobuf:"bytes,18,opt,name=billing_apply_scheduled_change,json=billingApplyScheduledChange,proto3,oneof"`
+}
+
+type EnqueueRequest_DistillBrand struct {
+	DistillBrand *DistillBrandArgs `protobuf:"bytes,19,opt,name=distill_brand,json=distillBrand,proto3,oneof"`
+}
+
+type EnqueueRequest_DistillAssetIdeas struct {
+	DistillAssetIdeas *DistillAssetIdeasArgs `protobuf:"bytes,20,opt,name=distill_asset_ideas,json=distillAssetIdeas,proto3,oneof"`
+}
+
 func (*EnqueueRequest_SubmitPostToZernio) isEnqueueRequest_Args() {}
 
 func (*EnqueueRequest_PollZernioStatus) isEnqueueRequest_Args() {}
@@ -440,6 +482,12 @@ func (*EnqueueRequest_ReembedImage) isEnqueueRequest_Args() {}
 func (*EnqueueRequest_AnalyzeAsset) isEnqueueRequest_Args() {}
 
 func (*EnqueueRequest_ReanalyzeCampaign) isEnqueueRequest_Args() {}
+
+func (*EnqueueRequest_BillingApplyScheduledChange) isEnqueueRequest_Args() {}
+
+func (*EnqueueRequest_DistillBrand) isEnqueueRequest_Args() {}
+
+func (*EnqueueRequest_DistillAssetIdeas) isEnqueueRequest_Args() {}
 
 type EnqueueResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1124,10 +1172,14 @@ func (x *BootstrapZernioProfileArgs) GetTenantId() string {
 	return ""
 }
 
-// TeardownZernioProfileArgs deletes a deleted workspace's Zernio profile.
+// TeardownZernioProfileArgs deletes a workspace's Zernio profile.
 type TeardownZernioProfileArgs struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	TenantId string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	// Empty for a deleted workspace. "trial_unpaid" for a live workspace whose
+	// trial ended without a subscription: ogen re-checks billing before the
+	// delete and keeps the profile if the workspace has subscribed since.
+	Reason        string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1169,6 +1221,13 @@ func (x *TeardownZernioProfileArgs) GetTenantId() string {
 	return ""
 }
 
+func (x *TeardownZernioProfileArgs) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 // SendEmailArgs sends one templated email.
 type SendEmailArgs struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1185,7 +1244,12 @@ type SendEmailArgs struct {
 	ToName         string `protobuf:"bytes,7,opt,name=to_name,json=toName,proto3" json:"to_name,omitempty"`
 	// Per-message template variables that cannot be derived at send time, such
 	// as a one-time reset link.
-	Vars          map[string]string `protobuf:"bytes,8,rep,name=vars,proto3" json:"vars,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Vars map[string]string `protobuf:"bytes,8,rep,name=vars,proto3" json:"vars,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// The weekly report a weekly_report email renders, as JSON. It is built
+	// once per workspace and rides every owner's email, so the numbers match.
+	// Opaque to river-service, which passes it back to ogen unchanged; ogen
+	// versions its shape. Empty for every other template.
+	Report        []byte `protobuf:"bytes,9,opt,name=report,proto3" json:"report,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1272,6 +1336,13 @@ func (x *SendEmailArgs) GetToName() string {
 func (x *SendEmailArgs) GetVars() map[string]string {
 	if x != nil {
 		return x.Vars
+	}
+	return nil
+}
+
+func (x *SendEmailArgs) GetReport() []byte {
+	if x != nil {
+		return x.Report
 	}
 	return nil
 }
@@ -1907,11 +1978,168 @@ func (x *ReanalyzeCampaignArgs) GetCampaignId() string {
 	return ""
 }
 
+// DistillAssetIdeasArgs runs one "distill more ideas" run. The run row in
+// ogen carries the lens, focus and count.
+type DistillAssetIdeasArgs struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DistillAssetIdeasArgs) Reset() {
+	*x = DistillAssetIdeasArgs{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DistillAssetIdeasArgs) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DistillAssetIdeasArgs) ProtoMessage() {}
+
+func (x *DistillAssetIdeasArgs) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DistillAssetIdeasArgs.ProtoReflect.Descriptor instead.
+func (*DistillAssetIdeasArgs) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *DistillAssetIdeasArgs) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *DistillAssetIdeasArgs) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+// DistillBrandArgs moves one brand distillation run on. The run row in ogen
+// carries its sources; the job waits while they ingest.
+type DistillBrandArgs struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DistillBrandArgs) Reset() {
+	*x = DistillBrandArgs{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DistillBrandArgs) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DistillBrandArgs) ProtoMessage() {}
+
+func (x *DistillBrandArgs) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DistillBrandArgs.ProtoReflect.Descriptor instead.
+func (*DistillBrandArgs) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *DistillBrandArgs) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *DistillBrandArgs) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+// BillingApplyScheduledChangeArgs advances a scheduled plan change: an hour
+// before it takes effect the provider moves to the new variant, and at the
+// effective time the workspace moves to the new tier. ogen picks the due step
+// from the change's status. Both steps are queued when the change is made,
+// each with its own scheduled_at.
+type BillingApplyScheduledChangeArgs struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ChangeId      string                 `protobuf:"bytes,1,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BillingApplyScheduledChangeArgs) Reset() {
+	*x = BillingApplyScheduledChangeArgs{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BillingApplyScheduledChangeArgs) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BillingApplyScheduledChangeArgs) ProtoMessage() {}
+
+func (x *BillingApplyScheduledChangeArgs) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BillingApplyScheduledChangeArgs.ProtoReflect.Descriptor instead.
+func (*BillingApplyScheduledChangeArgs) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *BillingApplyScheduledChangeArgs) GetChangeId() string {
+	if x != nil {
+		return x.ChangeId
+	}
+	return ""
+}
+
 var File_jobs_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x12jobs/v1/jobs.proto\x12\ajobs.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbc\v\n" +
+	"\x12jobs/v1/jobs.proto\x12\ajobs.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc1\r\n" +
 	"\x0eEnqueueRequest\x12T\n" +
 	"\x15submit_post_to_zernio\x18\x01 \x01(\v2\x1f.jobs.v1.SubmitPostToZernioArgsH\x00R\x12submitPostToZernio\x12M\n" +
 	"\x12poll_zernio_status\x18\x02 \x01(\v2\x1d.jobs.v1.PollZernioStatusArgsH\x00R\x10pollZernioStatus\x12J\n" +
@@ -1933,7 +2161,10 @@ const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\rprocess_audio\x18\x0e \x01(\v2\x19.jobs.v1.ProcessAudioArgsH\x00R\fprocessAudio\x12@\n" +
 	"\rreembed_image\x18\x0f \x01(\v2\x19.jobs.v1.ReembedImageArgsH\x00R\freembedImage\x12@\n" +
 	"\ranalyze_asset\x18\x10 \x01(\v2\x19.jobs.v1.AnalyzeAssetArgsH\x00R\fanalyzeAsset\x12O\n" +
-	"\x12reanalyze_campaign\x18\x11 \x01(\v2\x1e.jobs.v1.ReanalyzeCampaignArgsH\x00R\x11reanalyzeCampaign\x12'\n" +
+	"\x12reanalyze_campaign\x18\x11 \x01(\v2\x1e.jobs.v1.ReanalyzeCampaignArgsH\x00R\x11reanalyzeCampaign\x12o\n" +
+	"\x1ebilling_apply_scheduled_change\x18\x12 \x01(\v2(.jobs.v1.BillingApplyScheduledChangeArgsH\x00R\x1bbillingApplyScheduledChange\x12@\n" +
+	"\rdistill_brand\x18\x13 \x01(\v2\x19.jobs.v1.DistillBrandArgsH\x00R\fdistillBrand\x12P\n" +
+	"\x13distill_asset_ideas\x18\x14 \x01(\v2\x1e.jobs.v1.DistillAssetIdeasArgsH\x00R\x11distillAssetIdeas\x12'\n" +
 	"\x0fidempotency_key\x18d \x01(\tR\x0eidempotencyKey\x12=\n" +
 	"\fscheduled_at\x18e \x01(\v2\x1a.google.protobuf.TimestampR\vscheduledAt\x12\x1d\n" +
 	"\n" +
@@ -1981,9 +2212,10 @@ const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\apost_id\x18\x01 \x01(\tR\x06postId\x12*\n" +
 	"\x11publisher_post_id\x18\x02 \x01(\tR\x0fpublisherPostId\"9\n" +
 	"\x1aBootstrapZernioProfileArgs\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"8\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"P\n" +
 	"\x19TeardownZernioProfileArgs\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"\xd3\x02\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xeb\x02\n" +
 	"\rSendEmailArgs\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12!\n" +
@@ -1993,7 +2225,8 @@ const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x12\x19\n" +
 	"\bto_email\x18\x06 \x01(\tR\atoEmail\x12\x17\n" +
 	"\ato_name\x18\a \x01(\tR\x06toName\x124\n" +
-	"\x04vars\x18\b \x03(\v2 .jobs.v1.SendEmailArgs.VarsEntryR\x04vars\x1a7\n" +
+	"\x04vars\x18\b \x03(\v2 .jobs.v1.SendEmailArgs.VarsEntryR\x04vars\x12\x16\n" +
+	"\x06report\x18\t \x01(\fR\x06report\x1a7\n" +
 	"\tVarsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"?\n" +
@@ -2048,7 +2281,15 @@ const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\x15ReanalyzeCampaignArgs\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
 	"\vcampaign_id\x18\x02 \x01(\tR\n" +
-	"campaignId*\xe9\x01\n" +
+	"campaignId\"K\n" +
+	"\x15DistillAssetIdeasArgs\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"F\n" +
+	"\x10DistillBrandArgs\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\">\n" +
+	"\x1fBillingApplyScheduledChangeArgs\x12\x1b\n" +
+	"\tchange_id\x18\x01 \x01(\tR\bchangeId*\xe9\x01\n" +
 	"\bJobState\x12\x19\n" +
 	"\x15JOB_STATE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13JOB_STATE_AVAILABLE\x10\x01\x12\x17\n" +
@@ -2079,7 +2320,7 @@ func file_jobs_v1_jobs_proto_rawDescGZIP() []byte {
 }
 
 var file_jobs_v1_jobs_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_jobs_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_jobs_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_jobs_v1_jobs_proto_goTypes = []any{
 	(JobState)(0),                            // 0: jobs.v1.JobState
 	(*EnqueueRequest)(nil),                   // 1: jobs.v1.EnqueueRequest
@@ -2106,8 +2347,11 @@ var file_jobs_v1_jobs_proto_goTypes = []any{
 	(*ReembedImageArgs)(nil),                 // 22: jobs.v1.ReembedImageArgs
 	(*AnalyzeAssetArgs)(nil),                 // 23: jobs.v1.AnalyzeAssetArgs
 	(*ReanalyzeCampaignArgs)(nil),            // 24: jobs.v1.ReanalyzeCampaignArgs
-	nil,                                      // 25: jobs.v1.SendEmailArgs.VarsEntry
-	(*timestamppb.Timestamp)(nil),            // 26: google.protobuf.Timestamp
+	(*DistillAssetIdeasArgs)(nil),            // 25: jobs.v1.DistillAssetIdeasArgs
+	(*DistillBrandArgs)(nil),                 // 26: jobs.v1.DistillBrandArgs
+	(*BillingApplyScheduledChangeArgs)(nil),  // 27: jobs.v1.BillingApplyScheduledChangeArgs
+	nil,                                      // 28: jobs.v1.SendEmailArgs.VarsEntry
+	(*timestamppb.Timestamp)(nil),            // 29: google.protobuf.Timestamp
 }
 var file_jobs_v1_jobs_proto_depIdxs = []int32{
 	8,  // 0: jobs.v1.EnqueueRequest.submit_post_to_zernio:type_name -> jobs.v1.SubmitPostToZernioArgs
@@ -2127,25 +2371,28 @@ var file_jobs_v1_jobs_proto_depIdxs = []int32{
 	22, // 14: jobs.v1.EnqueueRequest.reembed_image:type_name -> jobs.v1.ReembedImageArgs
 	23, // 15: jobs.v1.EnqueueRequest.analyze_asset:type_name -> jobs.v1.AnalyzeAssetArgs
 	24, // 16: jobs.v1.EnqueueRequest.reanalyze_campaign:type_name -> jobs.v1.ReanalyzeCampaignArgs
-	26, // 17: jobs.v1.EnqueueRequest.scheduled_at:type_name -> google.protobuf.Timestamp
-	7,  // 18: jobs.v1.GetJobResponse.job:type_name -> jobs.v1.Job
-	7,  // 19: jobs.v1.CancelJobResponse.job:type_name -> jobs.v1.Job
-	0,  // 20: jobs.v1.Job.state:type_name -> jobs.v1.JobState
-	26, // 21: jobs.v1.Job.created_at:type_name -> google.protobuf.Timestamp
-	26, // 22: jobs.v1.Job.scheduled_at:type_name -> google.protobuf.Timestamp
-	26, // 23: jobs.v1.Job.finalized_at:type_name -> google.protobuf.Timestamp
-	25, // 24: jobs.v1.SendEmailArgs.vars:type_name -> jobs.v1.SendEmailArgs.VarsEntry
-	1,  // 25: jobs.v1.JobService.Enqueue:input_type -> jobs.v1.EnqueueRequest
-	3,  // 26: jobs.v1.JobService.GetJob:input_type -> jobs.v1.GetJobRequest
-	5,  // 27: jobs.v1.JobService.CancelJob:input_type -> jobs.v1.CancelJobRequest
-	2,  // 28: jobs.v1.JobService.Enqueue:output_type -> jobs.v1.EnqueueResponse
-	4,  // 29: jobs.v1.JobService.GetJob:output_type -> jobs.v1.GetJobResponse
-	6,  // 30: jobs.v1.JobService.CancelJob:output_type -> jobs.v1.CancelJobResponse
-	28, // [28:31] is the sub-list for method output_type
-	25, // [25:28] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	27, // 17: jobs.v1.EnqueueRequest.billing_apply_scheduled_change:type_name -> jobs.v1.BillingApplyScheduledChangeArgs
+	26, // 18: jobs.v1.EnqueueRequest.distill_brand:type_name -> jobs.v1.DistillBrandArgs
+	25, // 19: jobs.v1.EnqueueRequest.distill_asset_ideas:type_name -> jobs.v1.DistillAssetIdeasArgs
+	29, // 20: jobs.v1.EnqueueRequest.scheduled_at:type_name -> google.protobuf.Timestamp
+	7,  // 21: jobs.v1.GetJobResponse.job:type_name -> jobs.v1.Job
+	7,  // 22: jobs.v1.CancelJobResponse.job:type_name -> jobs.v1.Job
+	0,  // 23: jobs.v1.Job.state:type_name -> jobs.v1.JobState
+	29, // 24: jobs.v1.Job.created_at:type_name -> google.protobuf.Timestamp
+	29, // 25: jobs.v1.Job.scheduled_at:type_name -> google.protobuf.Timestamp
+	29, // 26: jobs.v1.Job.finalized_at:type_name -> google.protobuf.Timestamp
+	28, // 27: jobs.v1.SendEmailArgs.vars:type_name -> jobs.v1.SendEmailArgs.VarsEntry
+	1,  // 28: jobs.v1.JobService.Enqueue:input_type -> jobs.v1.EnqueueRequest
+	3,  // 29: jobs.v1.JobService.GetJob:input_type -> jobs.v1.GetJobRequest
+	5,  // 30: jobs.v1.JobService.CancelJob:input_type -> jobs.v1.CancelJobRequest
+	2,  // 31: jobs.v1.JobService.Enqueue:output_type -> jobs.v1.EnqueueResponse
+	4,  // 32: jobs.v1.JobService.GetJob:output_type -> jobs.v1.GetJobResponse
+	6,  // 33: jobs.v1.JobService.CancelJob:output_type -> jobs.v1.CancelJobResponse
+	31, // [31:34] is the sub-list for method output_type
+	28, // [28:31] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_jobs_v1_jobs_proto_init() }
@@ -2171,6 +2418,9 @@ func file_jobs_v1_jobs_proto_init() {
 		(*EnqueueRequest_ReembedImage)(nil),
 		(*EnqueueRequest_AnalyzeAsset)(nil),
 		(*EnqueueRequest_ReanalyzeCampaign)(nil),
+		(*EnqueueRequest_BillingApplyScheduledChange)(nil),
+		(*EnqueueRequest_DistillBrand)(nil),
+		(*EnqueueRequest_DistillAssetIdeas)(nil),
 	}
 	file_jobs_v1_jobs_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
@@ -2179,7 +2429,7 @@ func file_jobs_v1_jobs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_jobs_v1_jobs_proto_rawDesc), len(file_jobs_v1_jobs_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   25,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
