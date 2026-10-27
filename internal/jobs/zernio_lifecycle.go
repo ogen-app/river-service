@@ -26,6 +26,9 @@ func (BootstrapZernioProfileArgs) InsertOpts() river.InsertOpts {
 // TeardownZernioProfileArgs deletes a deleted workspace's Zernio profile.
 type TeardownZernioProfileArgs struct {
 	TenantID string `json:"tenant_id"`
+	// Reason is empty for a deleted workspace and "trial_unpaid" for a live
+	// one whose trial ended unpaid.
+	Reason string `json:"reason,omitempty"`
 }
 
 func (TeardownZernioProfileArgs) Kind() string { return "teardown_zernio_profile" }
@@ -74,7 +77,7 @@ func registerZernioLifecycle(reg *queue.Registry, cfg *config.Config, d stepDeps
 		return BootstrapZernioProfileArgs{TenantID: m.GetTenantId()}
 	})
 	queue.Register(reg, newStepWorker[TeardownZernioProfileArgs](d, 0), func(m *jobsv1.TeardownZernioProfileArgs) TeardownZernioProfileArgs {
-		return TeardownZernioProfileArgs{TenantID: m.GetTenantId()}
+		return TeardownZernioProfileArgs{TenantID: m.GetTenantId(), Reason: m.GetReason()}
 	})
 	queue.RegisterPeriodic(reg, newStepWorker[DetectExpiringConnectionsArgs](d, 0), cfg.ZernioHealthCheckInterval, DetectExpiringConnectionsArgs{})
 	queue.RegisterInternal(reg, newStepWorker[ExpiringConnectionsTenantArgs](d, 0))

@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -36,6 +37,9 @@ type SendEmailArgs struct {
 	ToEmail        string            `json:"to_email,omitempty"`
 	ToName         string            `json:"to_name,omitempty"`
 	Vars           map[string]string `json:"vars,omitempty"`
+	// Report is a weekly report as JSON. It is ogen's: this service only
+	// passes it back.
+	Report json.RawMessage `json:"report,omitempty"`
 }
 
 func (SendEmailArgs) Kind() string { return "send_email" }
@@ -50,7 +54,7 @@ func (SendEmailArgs) InsertOpts() river.InsertOpts {
 func (a SendEmailArgs) proto() *jobsv1.SendEmailArgs {
 	return &jobsv1.SendEmailArgs{
 		UserId: a.UserID, TenantId: a.TenantID, TemplateKey: a.TemplateKey, EmailKind: a.EmailKind,
-		IdempotencyKey: a.IdempotencyKey, ToEmail: a.ToEmail, ToName: a.ToName, Vars: a.Vars,
+		IdempotencyKey: a.IdempotencyKey, ToEmail: a.ToEmail, ToName: a.ToName, Vars: a.Vars, Report: a.Report,
 	}
 }
 
@@ -58,6 +62,7 @@ func sendEmailArgs(m *jobsv1.SendEmailArgs) SendEmailArgs {
 	return SendEmailArgs{
 		UserID: m.GetUserId(), TenantID: m.GetTenantId(), TemplateKey: m.GetTemplateKey(), EmailKind: m.GetEmailKind(),
 		IdempotencyKey: m.GetIdempotencyKey(), ToEmail: m.GetToEmail(), ToName: m.GetToName(), Vars: m.GetVars(),
+		Report: m.GetReport(),
 	}
 }
 

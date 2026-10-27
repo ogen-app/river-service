@@ -82,8 +82,9 @@ func (EmailOutcome) EnumDescriptor() ([]byte, []int) {
 type LeaseRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// One of "zernio_api_key", "gemini_api_key", "resend_api_key",
-	// "firecrawl_api_key", or "harbor_webhook_secret" (the key river-service
-	// signs Harbor's new-tenant webhook with).
+	// "firecrawl_api_key", "lemonsqueezy_api_key" (the key for the billing
+	// mode Harbor has selected, test or live), or "harbor_webhook_secret" (the
+	// key river-service signs Harbor's new-tenant webhook with).
 	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -184,8 +185,10 @@ type RunRequest struct {
 	// The sweep: "cleanup_post_logs", "cleanup_notifications",
 	// "cleanup_login_security", "cleanup_plugin_pairings",
 	// "sweep_pending_uploads", "cleanup_email_logs",
-	// "cleanup_zernio_connect_sessions", "reconcile_scheduled_posts" or
-	// "detect_manual_publish_due". Any other name is INVALID_ARGUMENT.
+	// "cleanup_zernio_connect_sessions", "reconcile_scheduled_posts",
+	// "detect_manual_publish_due", "backfill_asset_analyses",
+	// "billing_webhook_events_sweep" or "expire_brand_distills". Any other name
+	// is INVALID_ARGUMENT.
 	Task          string `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -915,9 +918,10 @@ func (*StepResponse_Wait) isStepResponse_Next() {}
 // HttpCall is one HTTP request to an outside API.
 type HttpCall struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The API: "zernio", "gemini" or "firecrawl". river-service sends the call
-	// to that API's base URL with its key leased from ogen. Empty means fetch
-	// url as is, with no credentials (e.g. an image on a scraped page).
+	// The API: "zernio", "gemini", "firecrawl" or "lemonsqueezy". river-service
+	// sends the call to that API's base URL with its key leased from ogen.
+	// Empty means fetch url as is, with no credentials (e.g. an image on a
+	// scraped page).
 	Upstream string `protobuf:"bytes,1,opt,name=upstream,proto3" json:"upstream,omitempty"`
 	Method   string `protobuf:"bytes,2,opt,name=method,proto3" json:"method,omitempty"`
 	// Path below the API base, e.g. "/profiles/abc". Unused when upstream is
