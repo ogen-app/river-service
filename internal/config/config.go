@@ -103,6 +103,13 @@ type Config struct {
 	// AnalysisBackfillInterval is the asset-analysis backfill's cadence; the
 	// batch size stays in ogen. Zero turns it off.
 	AnalysisBackfillInterval time.Duration `envconfig:"ANALYSIS_BACKFILL_INTERVAL" default:"15m"`
+	// BillingReconcileInterval re-reads every live subscription from Lemon
+	// Squeezy; ogen skips the pass while billing is off. Zero turns it off.
+	BillingReconcileInterval time.Duration `envconfig:"BILLING_RECONCILE_INTERVAL" default:"1h"`
+	// WeeklyReportCheckEvery is how often the weekly report looks for
+	// workspaces whose Monday 09:00 has come; ogen's WEEKLY_REPORT_ENABLED
+	// decides whether anything is sent. Zero turns it off.
+	WeeklyReportCheckEvery time.Duration `envconfig:"WEEKLY_REPORT_CHECK_EVERY" default:"1h"`
 
 	// Gemini's API (embeddings) and Firecrawl's (URL scrapes). Their keys are
 	// leased from ogen.
@@ -110,6 +117,9 @@ type Config struct {
 	GeminiHTTPTimeout    time.Duration `envconfig:"GEMINI_HTTP_TIMEOUT" default:"60s"`
 	FirecrawlBaseURL     string        `envconfig:"FIRECRAWL_BASE_URL" default:"https://api.firecrawl.dev"`
 	FirecrawlHTTPTimeout time.Duration `envconfig:"FIRECRAWL_HTTP_TIMEOUT" default:"90s"`
+	// Lemon Squeezy's API, for the billing jobs. The key is leased from ogen.
+	LemonSqueezyBaseURL     string        `envconfig:"LEMONSQUEEZY_BASE_URL" default:"https://api.lemonsqueezy.com/v1"`
+	LemonSqueezyHTTPTimeout time.Duration `envconfig:"LEMONSQUEEZY_HTTP_TIMEOUT" default:"15s"`
 	// FetchTimeout bounds a fetch of outside content (an image on a scraped
 	// page).
 	FetchTimeout time.Duration `envconfig:"FETCH_TIMEOUT" default:"30s"`

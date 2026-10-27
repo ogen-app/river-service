@@ -36,6 +36,9 @@ func Registry(cfg *config.Config, ogen *ogenrpc.Client) *queue.Registry {
 	registerPublishingSweeps(reg, cfg, steps, ogen.Maintenance)
 	registerIngestion(reg, steps)
 	registerAnalysis(reg, cfg, steps, ogen.Maintenance)
+	registerBrandDistill(reg, steps, ogen.Maintenance)
+	registerWeeklyReport(reg, cfg, steps)
+	registerBilling(reg, cfg, steps, ogen.Maintenance)
 	return reg
 }
 
@@ -66,6 +69,9 @@ func newActions(cfg *config.Config, keys actions.Keys) *actions.Executor {
 			upstreamZernio:    {BaseURL: cfg.ZernioBaseURL, Credential: credentials.Zernio, Header: "Authorization", Prefix: "Bearer ", Timeout: cfg.ZernioHTTPTimeout},
 			upstreamGemini:    {BaseURL: cfg.GeminiBaseURL, Credential: credentials.Gemini, Header: "x-goog-api-key", Timeout: cfg.GeminiHTTPTimeout},
 			upstreamFirecrawl: {BaseURL: cfg.FirecrawlBaseURL, Credential: credentials.Firecrawl, Header: "Authorization", Prefix: "Bearer ", Timeout: cfg.FirecrawlHTTPTimeout},
+			upstreamLemonSqueezy: {
+				BaseURL: cfg.LemonSqueezyBaseURL, Credential: credentials.LemonSqueezy, Header: "Authorization", Prefix: "Bearer ", Timeout: cfg.LemonSqueezyHTTPTimeout,
+			},
 		},
 		FetchTimeout: cfg.FetchTimeout,
 		Sidecars:     sidecars,
@@ -74,7 +80,8 @@ func newActions(cfg *config.Config, keys actions.Keys) *actions.Executor {
 
 // The named APIs ogen's planned calls go to.
 const (
-	upstreamZernio    = "zernio"
-	upstreamGemini    = "gemini"
-	upstreamFirecrawl = "firecrawl"
+	upstreamZernio       = "zernio"
+	upstreamGemini       = "gemini"
+	upstreamFirecrawl    = "firecrawl"
+	upstreamLemonSqueezy = "lemonsqueezy"
 )
