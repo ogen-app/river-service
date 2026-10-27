@@ -40,9 +40,10 @@ const (
 // spans continue the trace of the request that enqueued it.
 //
 // Periodic sweeps (cleanups, reconciles, refreshes) are scheduled inside
-// river-service and have no args message here, and neither do the jobs a
-// sweep fans out into (e.g. build_weekly_report, one per workspace): ogen
-// never enqueues them, and the next tick recreates any that are lost.
+// river-service and have no args message here, and neither do most jobs a
+// sweep fans out into: ogen never enqueues them, and the next tick recreates
+// any that are lost. build_weekly_report is the exception: ogen hands over the
+// builds its own queue left unfinished when it moved to river-service.
 type JobServiceClient interface {
 	// Enqueue inserts one job. A repeated idempotency_key returns the job the
 	// first call created, with duplicate set.
@@ -114,9 +115,10 @@ func (c *jobServiceClient) CancelJob(ctx context.Context, in *CancelJobRequest, 
 // spans continue the trace of the request that enqueued it.
 //
 // Periodic sweeps (cleanups, reconciles, refreshes) are scheduled inside
-// river-service and have no args message here, and neither do the jobs a
-// sweep fans out into (e.g. build_weekly_report, one per workspace): ogen
-// never enqueues them, and the next tick recreates any that are lost.
+// river-service and have no args message here, and neither do most jobs a
+// sweep fans out into: ogen never enqueues them, and the next tick recreates
+// any that are lost. build_weekly_report is the exception: ogen hands over the
+// builds its own queue left unfinished when it moved to river-service.
 type JobServiceServer interface {
 	// Enqueue inserts one job. A repeated idempotency_key returns the job the
 	// first call created, with duplicate set.

@@ -116,6 +116,7 @@ type EnqueueRequest struct {
 	//	*EnqueueRequest_BillingApplyScheduledChange
 	//	*EnqueueRequest_DistillBrand
 	//	*EnqueueRequest_DistillAssetIdeas
+	//	*EnqueueRequest_BuildWeeklyReport
 	Args isEnqueueRequest_Args `protobuf_oneof:"args"`
 	// Deduplicates retried deliveries. ogen sends the outbox row id.
 	IdempotencyKey string `protobuf:"bytes,100,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
@@ -344,6 +345,15 @@ func (x *EnqueueRequest) GetDistillAssetIdeas() *DistillAssetIdeasArgs {
 	return nil
 }
 
+func (x *EnqueueRequest) GetBuildWeeklyReport() *BuildWeeklyReportArgs {
+	if x != nil {
+		if x, ok := x.Args.(*EnqueueRequest_BuildWeeklyReport); ok {
+			return x.BuildWeeklyReport
+		}
+	}
+	return nil
+}
+
 func (x *EnqueueRequest) GetIdempotencyKey() string {
 	if x != nil {
 		return x.IdempotencyKey
@@ -449,6 +459,10 @@ type EnqueueRequest_DistillAssetIdeas struct {
 	DistillAssetIdeas *DistillAssetIdeasArgs `protobuf:"bytes,20,opt,name=distill_asset_ideas,json=distillAssetIdeas,proto3,oneof"`
 }
 
+type EnqueueRequest_BuildWeeklyReport struct {
+	BuildWeeklyReport *BuildWeeklyReportArgs `protobuf:"bytes,21,opt,name=build_weekly_report,json=buildWeeklyReport,proto3,oneof"`
+}
+
 func (*EnqueueRequest_SubmitPostToZernio) isEnqueueRequest_Args() {}
 
 func (*EnqueueRequest_PollZernioStatus) isEnqueueRequest_Args() {}
@@ -488,6 +502,8 @@ func (*EnqueueRequest_BillingApplyScheduledChange) isEnqueueRequest_Args() {}
 func (*EnqueueRequest_DistillBrand) isEnqueueRequest_Args() {}
 
 func (*EnqueueRequest_DistillAssetIdeas) isEnqueueRequest_Args() {}
+
+func (*EnqueueRequest_BuildWeeklyReport) isEnqueueRequest_Args() {}
 
 type EnqueueResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2086,6 +2102,62 @@ func (x *DistillBrandArgs) GetRunId() string {
 	return ""
 }
 
+// BuildWeeklyReportArgs builds one workspace's weekly report and queues the
+// owners' emails. river-service's weekly_report_dispatch fans out into these;
+// ogen enqueues one only to hand over a build its own queue left unfinished.
+type BuildWeeklyReportArgs struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	TenantId string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	// The Monday the week starts on, YYYY-MM-DD in the workspace's zone.
+	WeekStart     string `protobuf:"bytes,2,opt,name=week_start,json=weekStart,proto3" json:"week_start,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BuildWeeklyReportArgs) Reset() {
+	*x = BuildWeeklyReportArgs{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BuildWeeklyReportArgs) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BuildWeeklyReportArgs) ProtoMessage() {}
+
+func (x *BuildWeeklyReportArgs) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BuildWeeklyReportArgs.ProtoReflect.Descriptor instead.
+func (*BuildWeeklyReportArgs) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *BuildWeeklyReportArgs) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *BuildWeeklyReportArgs) GetWeekStart() string {
+	if x != nil {
+		return x.WeekStart
+	}
+	return ""
+}
+
 // BillingApplyScheduledChangeArgs advances a scheduled plan change: an hour
 // before it takes effect the provider moves to the new variant, and at the
 // effective time the workspace moves to the new tier. ogen picks the due step
@@ -2100,7 +2172,7 @@ type BillingApplyScheduledChangeArgs struct {
 
 func (x *BillingApplyScheduledChangeArgs) Reset() {
 	*x = BillingApplyScheduledChangeArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[26]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2112,7 +2184,7 @@ func (x *BillingApplyScheduledChangeArgs) String() string {
 func (*BillingApplyScheduledChangeArgs) ProtoMessage() {}
 
 func (x *BillingApplyScheduledChangeArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[26]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2125,7 +2197,7 @@ func (x *BillingApplyScheduledChangeArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BillingApplyScheduledChangeArgs.ProtoReflect.Descriptor instead.
 func (*BillingApplyScheduledChangeArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{26}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *BillingApplyScheduledChangeArgs) GetChangeId() string {
@@ -2139,7 +2211,7 @@ var File_jobs_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x12jobs/v1/jobs.proto\x12\ajobs.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc1\r\n" +
+	"\x12jobs/v1/jobs.proto\x12\ajobs.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x93\x0e\n" +
 	"\x0eEnqueueRequest\x12T\n" +
 	"\x15submit_post_to_zernio\x18\x01 \x01(\v2\x1f.jobs.v1.SubmitPostToZernioArgsH\x00R\x12submitPostToZernio\x12M\n" +
 	"\x12poll_zernio_status\x18\x02 \x01(\v2\x1d.jobs.v1.PollZernioStatusArgsH\x00R\x10pollZernioStatus\x12J\n" +
@@ -2164,7 +2236,8 @@ const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\x12reanalyze_campaign\x18\x11 \x01(\v2\x1e.jobs.v1.ReanalyzeCampaignArgsH\x00R\x11reanalyzeCampaign\x12o\n" +
 	"\x1ebilling_apply_scheduled_change\x18\x12 \x01(\v2(.jobs.v1.BillingApplyScheduledChangeArgsH\x00R\x1bbillingApplyScheduledChange\x12@\n" +
 	"\rdistill_brand\x18\x13 \x01(\v2\x19.jobs.v1.DistillBrandArgsH\x00R\fdistillBrand\x12P\n" +
-	"\x13distill_asset_ideas\x18\x14 \x01(\v2\x1e.jobs.v1.DistillAssetIdeasArgsH\x00R\x11distillAssetIdeas\x12'\n" +
+	"\x13distill_asset_ideas\x18\x14 \x01(\v2\x1e.jobs.v1.DistillAssetIdeasArgsH\x00R\x11distillAssetIdeas\x12P\n" +
+	"\x13build_weekly_report\x18\x15 \x01(\v2\x1e.jobs.v1.BuildWeeklyReportArgsH\x00R\x11buildWeeklyReport\x12'\n" +
 	"\x0fidempotency_key\x18d \x01(\tR\x0eidempotencyKey\x12=\n" +
 	"\fscheduled_at\x18e \x01(\v2\x1a.google.protobuf.TimestampR\vscheduledAt\x12\x1d\n" +
 	"\n" +
@@ -2287,7 +2360,11 @@ const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\"F\n" +
 	"\x10DistillBrandArgs\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
-	"\x06run_id\x18\x02 \x01(\tR\x05runId\">\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"S\n" +
+	"\x15BuildWeeklyReportArgs\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"week_start\x18\x02 \x01(\tR\tweekStart\">\n" +
 	"\x1fBillingApplyScheduledChangeArgs\x12\x1b\n" +
 	"\tchange_id\x18\x01 \x01(\tR\bchangeId*\xe9\x01\n" +
 	"\bJobState\x12\x19\n" +
@@ -2320,7 +2397,7 @@ func file_jobs_v1_jobs_proto_rawDescGZIP() []byte {
 }
 
 var file_jobs_v1_jobs_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_jobs_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_jobs_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_jobs_v1_jobs_proto_goTypes = []any{
 	(JobState)(0),                            // 0: jobs.v1.JobState
 	(*EnqueueRequest)(nil),                   // 1: jobs.v1.EnqueueRequest
@@ -2349,9 +2426,10 @@ var file_jobs_v1_jobs_proto_goTypes = []any{
 	(*ReanalyzeCampaignArgs)(nil),            // 24: jobs.v1.ReanalyzeCampaignArgs
 	(*DistillAssetIdeasArgs)(nil),            // 25: jobs.v1.DistillAssetIdeasArgs
 	(*DistillBrandArgs)(nil),                 // 26: jobs.v1.DistillBrandArgs
-	(*BillingApplyScheduledChangeArgs)(nil),  // 27: jobs.v1.BillingApplyScheduledChangeArgs
-	nil,                                      // 28: jobs.v1.SendEmailArgs.VarsEntry
-	(*timestamppb.Timestamp)(nil),            // 29: google.protobuf.Timestamp
+	(*BuildWeeklyReportArgs)(nil),            // 27: jobs.v1.BuildWeeklyReportArgs
+	(*BillingApplyScheduledChangeArgs)(nil),  // 28: jobs.v1.BillingApplyScheduledChangeArgs
+	nil,                                      // 29: jobs.v1.SendEmailArgs.VarsEntry
+	(*timestamppb.Timestamp)(nil),            // 30: google.protobuf.Timestamp
 }
 var file_jobs_v1_jobs_proto_depIdxs = []int32{
 	8,  // 0: jobs.v1.EnqueueRequest.submit_post_to_zernio:type_name -> jobs.v1.SubmitPostToZernioArgs
@@ -2371,28 +2449,29 @@ var file_jobs_v1_jobs_proto_depIdxs = []int32{
 	22, // 14: jobs.v1.EnqueueRequest.reembed_image:type_name -> jobs.v1.ReembedImageArgs
 	23, // 15: jobs.v1.EnqueueRequest.analyze_asset:type_name -> jobs.v1.AnalyzeAssetArgs
 	24, // 16: jobs.v1.EnqueueRequest.reanalyze_campaign:type_name -> jobs.v1.ReanalyzeCampaignArgs
-	27, // 17: jobs.v1.EnqueueRequest.billing_apply_scheduled_change:type_name -> jobs.v1.BillingApplyScheduledChangeArgs
+	28, // 17: jobs.v1.EnqueueRequest.billing_apply_scheduled_change:type_name -> jobs.v1.BillingApplyScheduledChangeArgs
 	26, // 18: jobs.v1.EnqueueRequest.distill_brand:type_name -> jobs.v1.DistillBrandArgs
 	25, // 19: jobs.v1.EnqueueRequest.distill_asset_ideas:type_name -> jobs.v1.DistillAssetIdeasArgs
-	29, // 20: jobs.v1.EnqueueRequest.scheduled_at:type_name -> google.protobuf.Timestamp
-	7,  // 21: jobs.v1.GetJobResponse.job:type_name -> jobs.v1.Job
-	7,  // 22: jobs.v1.CancelJobResponse.job:type_name -> jobs.v1.Job
-	0,  // 23: jobs.v1.Job.state:type_name -> jobs.v1.JobState
-	29, // 24: jobs.v1.Job.created_at:type_name -> google.protobuf.Timestamp
-	29, // 25: jobs.v1.Job.scheduled_at:type_name -> google.protobuf.Timestamp
-	29, // 26: jobs.v1.Job.finalized_at:type_name -> google.protobuf.Timestamp
-	28, // 27: jobs.v1.SendEmailArgs.vars:type_name -> jobs.v1.SendEmailArgs.VarsEntry
-	1,  // 28: jobs.v1.JobService.Enqueue:input_type -> jobs.v1.EnqueueRequest
-	3,  // 29: jobs.v1.JobService.GetJob:input_type -> jobs.v1.GetJobRequest
-	5,  // 30: jobs.v1.JobService.CancelJob:input_type -> jobs.v1.CancelJobRequest
-	2,  // 31: jobs.v1.JobService.Enqueue:output_type -> jobs.v1.EnqueueResponse
-	4,  // 32: jobs.v1.JobService.GetJob:output_type -> jobs.v1.GetJobResponse
-	6,  // 33: jobs.v1.JobService.CancelJob:output_type -> jobs.v1.CancelJobResponse
-	31, // [31:34] is the sub-list for method output_type
-	28, // [28:31] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	27, // 20: jobs.v1.EnqueueRequest.build_weekly_report:type_name -> jobs.v1.BuildWeeklyReportArgs
+	30, // 21: jobs.v1.EnqueueRequest.scheduled_at:type_name -> google.protobuf.Timestamp
+	7,  // 22: jobs.v1.GetJobResponse.job:type_name -> jobs.v1.Job
+	7,  // 23: jobs.v1.CancelJobResponse.job:type_name -> jobs.v1.Job
+	0,  // 24: jobs.v1.Job.state:type_name -> jobs.v1.JobState
+	30, // 25: jobs.v1.Job.created_at:type_name -> google.protobuf.Timestamp
+	30, // 26: jobs.v1.Job.scheduled_at:type_name -> google.protobuf.Timestamp
+	30, // 27: jobs.v1.Job.finalized_at:type_name -> google.protobuf.Timestamp
+	29, // 28: jobs.v1.SendEmailArgs.vars:type_name -> jobs.v1.SendEmailArgs.VarsEntry
+	1,  // 29: jobs.v1.JobService.Enqueue:input_type -> jobs.v1.EnqueueRequest
+	3,  // 30: jobs.v1.JobService.GetJob:input_type -> jobs.v1.GetJobRequest
+	5,  // 31: jobs.v1.JobService.CancelJob:input_type -> jobs.v1.CancelJobRequest
+	2,  // 32: jobs.v1.JobService.Enqueue:output_type -> jobs.v1.EnqueueResponse
+	4,  // 33: jobs.v1.JobService.GetJob:output_type -> jobs.v1.GetJobResponse
+	6,  // 34: jobs.v1.JobService.CancelJob:output_type -> jobs.v1.CancelJobResponse
+	32, // [32:35] is the sub-list for method output_type
+	29, // [29:32] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_jobs_v1_jobs_proto_init() }
@@ -2421,6 +2500,7 @@ func file_jobs_v1_jobs_proto_init() {
 		(*EnqueueRequest_BillingApplyScheduledChange)(nil),
 		(*EnqueueRequest_DistillBrand)(nil),
 		(*EnqueueRequest_DistillAssetIdeas)(nil),
+		(*EnqueueRequest_BuildWeeklyReport)(nil),
 	}
 	file_jobs_v1_jobs_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
@@ -2429,7 +2509,7 @@ func file_jobs_v1_jobs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_jobs_v1_jobs_proto_rawDesc), len(file_jobs_v1_jobs_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   28,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
