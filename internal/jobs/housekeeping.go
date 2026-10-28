@@ -10,7 +10,6 @@ import (
 
 	jobrpcv1 "github.com/ogen-app/river-service/gen/jobrpc/v1"
 	"github.com/ogen-app/river-service/internal/config"
-	"github.com/ogen-app/river-service/internal/ogenrpc"
 	"github.com/ogen-app/river-service/internal/queue"
 )
 
@@ -91,10 +90,7 @@ func (w *sweepWorker[A]) Timeout(*river.Job[A]) time.Duration { return sweepTime
 
 func (w *sweepWorker[A]) Work(ctx context.Context, job *river.Job[A]) error {
 	_, err := w.rpc.Run(ctx, &jobrpcv1.RunRequest{Task: job.Kind})
-	if ogenrpc.Transient(err) {
-		return river.JobSnooze(transientSnooze)
-	}
-	return err
+	return retryLater(ctx, job.Kind, err)
 }
 
 func registerHousekeeping(reg *queue.Registry, cfg *config.Config, rpc Maintenance) {

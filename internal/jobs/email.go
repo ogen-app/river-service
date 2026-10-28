@@ -97,7 +97,7 @@ func (w *sendEmailWorker) Work(ctx context.Context, job *river.Job[SendEmailArgs
 	args := job.Args.proto()
 	prep, err := w.ogen.PrepareEmail(ctx, &jobrpcv1.PrepareEmailRequest{Args: args})
 	if err != nil {
-		return retryLater(err)
+		return retryLater(ctx, job.Kind, err)
 	}
 	msg := prep.GetSend()
 	if msg == nil {
@@ -108,7 +108,7 @@ func (w *sendEmailWorker) Work(ctx context.Context, job *river.Job[SendEmailArgs
 
 	key, err := w.keys.Get(ctx, credentials.Resend)
 	if err != nil {
-		return retryLater(err)
+		return retryLater(ctx, job.Kind, err)
 	}
 	if key == "" {
 		return w.record(ctx, args, jobrpcv1.EmailOutcome_EMAIL_OUTCOME_SKIPPED_DISABLED, nil, "", "")
@@ -142,15 +142,19 @@ func (w *sendEmailWorker) record(ctx context.Context, args *jobsv1.SendEmailArgs
 		Args: args, Outcome: outcome, Message: msg, ProviderMessageId: providerID, Error: errMsg,
 	})
 	if err != nil {
-		return retryLater(fmt.Errorf("record email outcome: %w", err))
+		return retryLater(ctx, "send_email", fmt.Errorf("record email outcome: %w", err))
 	}
 	return nil
 }
 
 // retryLater snoozes on an ogen RPC that is busy, unreachable or not deployed
-// yet, and returns any other error for River to retry.
-func retryLater(err error) error {
+// yet, and returns any other error for River to retry. A snooze records no
+// error on the job, so the cause is logged here: a misconfigured ogen address
+// otherwise shows only as a job that keeps snoozing.
+func retryLater(ctx context.Context, kind string, err error) error {
 	if ogenrpc.Transient(err) {
+		slog.WarnContext(ctx, "ogen rpc unavailable; job snoozed", logging.AttrComponent, "jobs",
+			"kind", kind, "snooze", transientSnooze, logging.AttrError, err)
 		return river.JobSnooze(transientSnooze)
 	}
 	return err
