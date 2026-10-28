@@ -139,7 +139,7 @@ func TestHarborWorker(t *testing.T) {
 	t.Cleanup(srv.Close)
 	job := &river.Job[NotifyHarborTenantRegisteredArgs]{JobRow: &rivertype.JobRow{}, Args: NotifyHarborTenantRegisteredArgs{TenantID: "t1"}}
 
-	w := newHarborWorker(srv.URL, fakeKeys{key: "s3cret"})
+	w := newHarborWorker[NotifyHarborTenantRegisteredArgs](srv.URL, fakeKeys{key: "s3cret"})
 	if err := w.Work(t.Context(), job); err != nil {
 		t.Fatal(err)
 	}
@@ -157,12 +157,39 @@ func TestHarborWorker(t *testing.T) {
 	if err := w.Work(t.Context(), job); err != nil {
 		t.Errorf("4xx: %v, want a final nil", err)
 	}
-	if err := newHarborWorker("", fakeKeys{}).Work(t.Context(), job); err != nil {
+	if err := newHarborWorker[NotifyHarborTenantRegisteredArgs]("", fakeKeys{}).Work(t.Context(), job); err != nil {
 		t.Errorf("no url: %v, want a no-op", err)
 	}
 	status = http.StatusOK
-	if err := newHarborWorker(srv.URL, fakeKeys{}).Work(t.Context(), job); err != nil || gotSig != "" {
+	if err := newHarborWorker[NotifyHarborTenantRegisteredArgs](srv.URL, fakeKeys{}).Work(t.Context(), job); err != nil || gotSig != "" {
 		t.Errorf("no key set in ogen: %v, signature %q; want an unsigned delivery", err, gotSig)
+	}
+}
+
+func TestHarborWorkerReceiptReceived(t *testing.T) {
+	var gotSig, gotBody string
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		b, _ := io.ReadAll(r.Body)
+		gotBody, gotSig = string(b), r.Header.Get("X-Ogen-Signature")
+	}))
+	t.Cleanup(srv.Close)
+	w := newHarborWorker[NotifyHarborReceiptReceivedArgs](srv.URL, fakeKeys{key: "s3cret"})
+
+	job := &river.Job[NotifyHarborReceiptReceivedArgs]{JobRow: &rivertype.JobRow{}, Args: NotifyHarborReceiptReceivedArgs{ResendEmailID: "em_1"}}
+	if err := w.Work(t.Context(), job); err != nil {
+		t.Fatal(err)
+	}
+	mac := hmac.New(sha256.New, []byte("s3cret"))
+	mac.Write([]byte(gotBody))
+	if gotSig != "sha256="+hex.EncodeToString(mac.Sum(nil)) || gotBody != `{"event":"receipt.received","resend_email_id":"em_1"}` {
+		t.Errorf("body %s, signature %s", gotBody, gotSig)
+	}
+
+	job.Args.ResendEmailID = ""
+	if err := w.Work(t.Context(), job); err != nil || calls != 1 {
+		t.Errorf("no email id: %v after %d calls, want a no-op", err, calls)
 	}
 }
 
