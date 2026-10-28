@@ -47,24 +47,26 @@ func (BillingResyncSubscriptionArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{MaxAttempts: 3}
 }
 
-// BillingBackfillPaymentsArgs pages through the Lemon Squeezy payment history
-// (orders, subscription invoices, refunds) of the billing mode ogen runs in.
-// The reconcile fans it out while ogen's backfill hasn't reached the end. Each
-// step is one page: ogen plans the call, decodes it, stores the payments and
-// the cursor, so an attempt cut short resumes on the next page.
-type BillingBackfillPaymentsArgs struct{}
+// BillingSyncPaymentsArgs pages through the whole Lemon Squeezy payment
+// history (orders, then subscription invoices, refunds included) of the
+// billing mode ogen runs in. Each step is one page: ogen plans the call,
+// decodes it and upserts the payments. The first run backfills what predates
+// the webhooks; later runs pick up refunds whose webhook was lost. A retry
+// starts over from the first page, which is safe because every page is an
+// upsert. ogen skips the pass while billing is off.
+type BillingSyncPaymentsArgs struct{}
 
-func (BillingBackfillPaymentsArgs) Kind() string { return "billing_backfill_payments" }
+func (BillingSyncPaymentsArgs) Kind() string { return "billing_sync_payments" }
 
-// InsertOpts fold a second fan-out into the backfill already waiting or
-// running; the next reconcile picks up where a failed one stopped.
-func (BillingBackfillPaymentsArgs) InsertOpts() river.InsertOpts {
+// InsertOpts keep one sync waiting or running; a tick that lands while one
+// is still paging folds into it.
+func (BillingSyncPaymentsArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{MaxAttempts: 3, UniqueOpts: river.UniqueOpts{ByArgs: true, ByState: waitingStates}}
 }
 
-// billingBackfillTimeout bounds one backfill attempt: many pages, each a
+// billingSyncPaymentsTimeout bounds one sync attempt: many pages, each a
 // short Lemon Squeezy call, well under RESCUE_STUCK_JOBS_AFTER.
-const billingBackfillTimeout = 10 * time.Minute
+const billingSyncPaymentsTimeout = 10 * time.Minute
 
 // BillingWebhookEventsSweepArgs prunes the webhook log. It only touches
 // ogen's tables, so it runs in ogen (MaintenanceService.Run).
@@ -83,7 +85,6 @@ func registerBilling(reg *queue.Registry, cfg *config.Config, d stepDeps, mainte
 	queue.RegisterPeriodic(reg, newStepWorker[BillingReconcileArgs](d, 0), cfg.BillingReconcileInterval, BillingReconcileArgs{})
 	queue.RegisterInternal(reg, newStepWorker[BillingResyncSubscriptionArgs](d, 0))
 	d.children.build[BillingResyncSubscriptionArgs{}.Kind()] = childOf[BillingResyncSubscriptionArgs]()
-	queue.RegisterInternal(reg, newStepWorker[BillingBackfillPaymentsArgs](d, billingBackfillTimeout))
-	d.children.build[BillingBackfillPaymentsArgs{}.Kind()] = childOf[BillingBackfillPaymentsArgs]()
+	queue.RegisterPeriodic(reg, newStepWorker[BillingSyncPaymentsArgs](d, billingSyncPaymentsTimeout), cfg.BillingPaymentsSyncInterval, BillingSyncPaymentsArgs{})
 	queue.RegisterPeriodic(reg, &sweepWorker[BillingWebhookEventsSweepArgs]{rpc: maintenance}, billingWebhookSweepEvery, BillingWebhookEventsSweepArgs{})
 }
