@@ -77,7 +77,7 @@ func (w *harborWorker) Work(ctx context.Context, job *river.Job[NotifyHarborTena
 	req.Header.Set("Content-Type", "application/json")
 	secret, err := w.keys.Get(ctx, harborWebhookKey)
 	if err != nil {
-		return retryLater(err)
+		return retryLater(ctx, job.Kind, err)
 	}
 	// No key set in ogen sends the webhook unsigned, as ogen always has.
 	if secret != "" {

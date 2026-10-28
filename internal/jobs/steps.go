@@ -91,7 +91,7 @@ func (w *stepWorker[A]) Work(ctx context.Context, job *river.Job[A]) error {
 		if err != nil {
 			// A call cut by its own deadline is DEADLINE_EXCEEDED, so the
 			// job snoozes; one cut by the job's stop is not.
-			return retryLater(err)
+			return retryLater(ctx, job.Kind, err)
 		}
 		state = resp.GetState()
 		switch next := resp.GetNext().(type) {
