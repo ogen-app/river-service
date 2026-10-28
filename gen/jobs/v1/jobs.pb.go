@@ -117,6 +117,7 @@ type EnqueueRequest struct {
 	//	*EnqueueRequest_DistillBrand
 	//	*EnqueueRequest_DistillAssetIdeas
 	//	*EnqueueRequest_BuildWeeklyReport
+	//	*EnqueueRequest_NotifyHarborReceiptReceived
 	Args isEnqueueRequest_Args `protobuf_oneof:"args"`
 	// Deduplicates retried deliveries. ogen sends the outbox row id.
 	IdempotencyKey string `protobuf:"bytes,100,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
@@ -354,6 +355,15 @@ func (x *EnqueueRequest) GetBuildWeeklyReport() *BuildWeeklyReportArgs {
 	return nil
 }
 
+func (x *EnqueueRequest) GetNotifyHarborReceiptReceived() *NotifyHarborReceiptReceivedArgs {
+	if x != nil {
+		if x, ok := x.Args.(*EnqueueRequest_NotifyHarborReceiptReceived); ok {
+			return x.NotifyHarborReceiptReceived
+		}
+	}
+	return nil
+}
+
 func (x *EnqueueRequest) GetIdempotencyKey() string {
 	if x != nil {
 		return x.IdempotencyKey
@@ -463,6 +473,10 @@ type EnqueueRequest_BuildWeeklyReport struct {
 	BuildWeeklyReport *BuildWeeklyReportArgs `protobuf:"bytes,21,opt,name=build_weekly_report,json=buildWeeklyReport,proto3,oneof"`
 }
 
+type EnqueueRequest_NotifyHarborReceiptReceived struct {
+	NotifyHarborReceiptReceived *NotifyHarborReceiptReceivedArgs `protobuf:"bytes,22,opt,name=notify_harbor_receipt_received,json=notifyHarborReceiptReceived,proto3,oneof"`
+}
+
 func (*EnqueueRequest_SubmitPostToZernio) isEnqueueRequest_Args() {}
 
 func (*EnqueueRequest_PollZernioStatus) isEnqueueRequest_Args() {}
@@ -504,6 +518,8 @@ func (*EnqueueRequest_DistillBrand) isEnqueueRequest_Args() {}
 func (*EnqueueRequest_DistillAssetIdeas) isEnqueueRequest_Args() {}
 
 func (*EnqueueRequest_BuildWeeklyReport) isEnqueueRequest_Args() {}
+
+func (*EnqueueRequest_NotifyHarborReceiptReceived) isEnqueueRequest_Args() {}
 
 type EnqueueResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1408,6 +1424,53 @@ func (x *NotifyHarborTenantRegisteredArgs) GetTenantId() string {
 	return ""
 }
 
+// NotifyHarborReceiptReceivedArgs tells Harbor a vendor receipt arrived at the
+// inbound address (CON-412). It carries no email content: Harbor fetches and
+// extracts the email with receipts.v1 ProcessReceipt.
+type NotifyHarborReceiptReceivedArgs struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ResendEmailId string                 `protobuf:"bytes,1,opt,name=resend_email_id,json=resendEmailId,proto3" json:"resend_email_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifyHarborReceiptReceivedArgs) Reset() {
+	*x = NotifyHarborReceiptReceivedArgs{}
+	mi := &file_jobs_v1_jobs_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifyHarborReceiptReceivedArgs) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifyHarborReceiptReceivedArgs) ProtoMessage() {}
+
+func (x *NotifyHarborReceiptReceivedArgs) ProtoReflect() protoreflect.Message {
+	mi := &file_jobs_v1_jobs_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifyHarborReceiptReceivedArgs.ProtoReflect.Descriptor instead.
+func (*NotifyHarborReceiptReceivedArgs) Descriptor() ([]byte, []int) {
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *NotifyHarborReceiptReceivedArgs) GetResendEmailId() string {
+	if x != nil {
+		return x.ResendEmailId
+	}
+	return ""
+}
+
 // ProcessPdfArgs parses and embeds an uploaded PDF.
 type ProcessPdfArgs struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1421,7 +1484,7 @@ type ProcessPdfArgs struct {
 
 func (x *ProcessPdfArgs) Reset() {
 	*x = ProcessPdfArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[16]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1433,7 +1496,7 @@ func (x *ProcessPdfArgs) String() string {
 func (*ProcessPdfArgs) ProtoMessage() {}
 
 func (x *ProcessPdfArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[16]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1446,7 +1509,7 @@ func (x *ProcessPdfArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessPdfArgs.ProtoReflect.Descriptor instead.
 func (*ProcessPdfArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{16}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ProcessPdfArgs) GetAssetId() string {
@@ -1491,7 +1554,7 @@ type ProcessDocumentArgs struct {
 
 func (x *ProcessDocumentArgs) Reset() {
 	*x = ProcessDocumentArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[17]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1503,7 +1566,7 @@ func (x *ProcessDocumentArgs) String() string {
 func (*ProcessDocumentArgs) ProtoMessage() {}
 
 func (x *ProcessDocumentArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[17]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1516,7 +1579,7 @@ func (x *ProcessDocumentArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessDocumentArgs.ProtoReflect.Descriptor instead.
 func (*ProcessDocumentArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{17}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ProcessDocumentArgs) GetAssetId() string {
@@ -1568,7 +1631,7 @@ type ProcessUrlArgs struct {
 
 func (x *ProcessUrlArgs) Reset() {
 	*x = ProcessUrlArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[18]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1580,7 +1643,7 @@ func (x *ProcessUrlArgs) String() string {
 func (*ProcessUrlArgs) ProtoMessage() {}
 
 func (x *ProcessUrlArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[18]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1593,7 +1656,7 @@ func (x *ProcessUrlArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessUrlArgs.ProtoReflect.Descriptor instead.
 func (*ProcessUrlArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{18}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ProcessUrlArgs) GetAssetId() string {
@@ -1642,7 +1705,7 @@ type ProcessImageArgs struct {
 
 func (x *ProcessImageArgs) Reset() {
 	*x = ProcessImageArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[19]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1654,7 +1717,7 @@ func (x *ProcessImageArgs) String() string {
 func (*ProcessImageArgs) ProtoMessage() {}
 
 func (x *ProcessImageArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[19]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1667,7 +1730,7 @@ func (x *ProcessImageArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessImageArgs.ProtoReflect.Descriptor instead.
 func (*ProcessImageArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{19}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ProcessImageArgs) GetAssetId() string {
@@ -1737,7 +1800,7 @@ type ProcessAudioArgs struct {
 
 func (x *ProcessAudioArgs) Reset() {
 	*x = ProcessAudioArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[20]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1749,7 +1812,7 @@ func (x *ProcessAudioArgs) String() string {
 func (*ProcessAudioArgs) ProtoMessage() {}
 
 func (x *ProcessAudioArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[20]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1762,7 +1825,7 @@ func (x *ProcessAudioArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessAudioArgs.ProtoReflect.Descriptor instead.
 func (*ProcessAudioArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{20}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ProcessAudioArgs) GetAssetId() string {
@@ -1825,7 +1888,7 @@ type ReembedImageArgs struct {
 
 func (x *ReembedImageArgs) Reset() {
 	*x = ReembedImageArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[21]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1837,7 +1900,7 @@ func (x *ReembedImageArgs) String() string {
 func (*ReembedImageArgs) ProtoMessage() {}
 
 func (x *ReembedImageArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[21]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1850,7 +1913,7 @@ func (x *ReembedImageArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReembedImageArgs.ProtoReflect.Descriptor instead.
 func (*ReembedImageArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{21}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ReembedImageArgs) GetAssetId() string {
@@ -1884,7 +1947,7 @@ type AnalyzeAssetArgs struct {
 
 func (x *AnalyzeAssetArgs) Reset() {
 	*x = AnalyzeAssetArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[22]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1896,7 +1959,7 @@ func (x *AnalyzeAssetArgs) String() string {
 func (*AnalyzeAssetArgs) ProtoMessage() {}
 
 func (x *AnalyzeAssetArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[22]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1909,7 +1972,7 @@ func (x *AnalyzeAssetArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeAssetArgs.ProtoReflect.Descriptor instead.
 func (*AnalyzeAssetArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{22}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *AnalyzeAssetArgs) GetTenantId() string {
@@ -1952,7 +2015,7 @@ type ReanalyzeCampaignArgs struct {
 
 func (x *ReanalyzeCampaignArgs) Reset() {
 	*x = ReanalyzeCampaignArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[23]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1964,7 +2027,7 @@ func (x *ReanalyzeCampaignArgs) String() string {
 func (*ReanalyzeCampaignArgs) ProtoMessage() {}
 
 func (x *ReanalyzeCampaignArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[23]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1977,7 +2040,7 @@ func (x *ReanalyzeCampaignArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReanalyzeCampaignArgs.ProtoReflect.Descriptor instead.
 func (*ReanalyzeCampaignArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{23}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ReanalyzeCampaignArgs) GetTenantId() string {
@@ -2006,7 +2069,7 @@ type DistillAssetIdeasArgs struct {
 
 func (x *DistillAssetIdeasArgs) Reset() {
 	*x = DistillAssetIdeasArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[24]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2018,7 +2081,7 @@ func (x *DistillAssetIdeasArgs) String() string {
 func (*DistillAssetIdeasArgs) ProtoMessage() {}
 
 func (x *DistillAssetIdeasArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[24]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2031,7 +2094,7 @@ func (x *DistillAssetIdeasArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DistillAssetIdeasArgs.ProtoReflect.Descriptor instead.
 func (*DistillAssetIdeasArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{24}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *DistillAssetIdeasArgs) GetTenantId() string {
@@ -2060,7 +2123,7 @@ type DistillBrandArgs struct {
 
 func (x *DistillBrandArgs) Reset() {
 	*x = DistillBrandArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[25]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2072,7 +2135,7 @@ func (x *DistillBrandArgs) String() string {
 func (*DistillBrandArgs) ProtoMessage() {}
 
 func (x *DistillBrandArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[25]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2085,7 +2148,7 @@ func (x *DistillBrandArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DistillBrandArgs.ProtoReflect.Descriptor instead.
 func (*DistillBrandArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{25}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *DistillBrandArgs) GetTenantId() string {
@@ -2116,7 +2179,7 @@ type BuildWeeklyReportArgs struct {
 
 func (x *BuildWeeklyReportArgs) Reset() {
 	*x = BuildWeeklyReportArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[26]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2128,7 +2191,7 @@ func (x *BuildWeeklyReportArgs) String() string {
 func (*BuildWeeklyReportArgs) ProtoMessage() {}
 
 func (x *BuildWeeklyReportArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[26]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2141,7 +2204,7 @@ func (x *BuildWeeklyReportArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildWeeklyReportArgs.ProtoReflect.Descriptor instead.
 func (*BuildWeeklyReportArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{26}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *BuildWeeklyReportArgs) GetTenantId() string {
@@ -2172,7 +2235,7 @@ type BillingApplyScheduledChangeArgs struct {
 
 func (x *BillingApplyScheduledChangeArgs) Reset() {
 	*x = BillingApplyScheduledChangeArgs{}
-	mi := &file_jobs_v1_jobs_proto_msgTypes[27]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2184,7 +2247,7 @@ func (x *BillingApplyScheduledChangeArgs) String() string {
 func (*BillingApplyScheduledChangeArgs) ProtoMessage() {}
 
 func (x *BillingApplyScheduledChangeArgs) ProtoReflect() protoreflect.Message {
-	mi := &file_jobs_v1_jobs_proto_msgTypes[27]
+	mi := &file_jobs_v1_jobs_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2197,7 +2260,7 @@ func (x *BillingApplyScheduledChangeArgs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BillingApplyScheduledChangeArgs.ProtoReflect.Descriptor instead.
 func (*BillingApplyScheduledChangeArgs) Descriptor() ([]byte, []int) {
-	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{27}
+	return file_jobs_v1_jobs_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *BillingApplyScheduledChangeArgs) GetChangeId() string {
@@ -2211,7 +2274,7 @@ var File_jobs_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x12jobs/v1/jobs.proto\x12\ajobs.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x93\x0e\n" +
+	"\x12jobs/v1/jobs.proto\x12\ajobs.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x84\x0f\n" +
 	"\x0eEnqueueRequest\x12T\n" +
 	"\x15submit_post_to_zernio\x18\x01 \x01(\v2\x1f.jobs.v1.SubmitPostToZernioArgsH\x00R\x12submitPostToZernio\x12M\n" +
 	"\x12poll_zernio_status\x18\x02 \x01(\v2\x1d.jobs.v1.PollZernioStatusArgsH\x00R\x10pollZernioStatus\x12J\n" +
@@ -2237,7 +2300,8 @@ const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\x1ebilling_apply_scheduled_change\x18\x12 \x01(\v2(.jobs.v1.BillingApplyScheduledChangeArgsH\x00R\x1bbillingApplyScheduledChange\x12@\n" +
 	"\rdistill_brand\x18\x13 \x01(\v2\x19.jobs.v1.DistillBrandArgsH\x00R\fdistillBrand\x12P\n" +
 	"\x13distill_asset_ideas\x18\x14 \x01(\v2\x1e.jobs.v1.DistillAssetIdeasArgsH\x00R\x11distillAssetIdeas\x12P\n" +
-	"\x13build_weekly_report\x18\x15 \x01(\v2\x1e.jobs.v1.BuildWeeklyReportArgsH\x00R\x11buildWeeklyReport\x12'\n" +
+	"\x13build_weekly_report\x18\x15 \x01(\v2\x1e.jobs.v1.BuildWeeklyReportArgsH\x00R\x11buildWeeklyReport\x12o\n" +
+	"\x1enotify_harbor_receipt_received\x18\x16 \x01(\v2(.jobs.v1.NotifyHarborReceiptReceivedArgsH\x00R\x1bnotifyHarborReceiptReceived\x12'\n" +
 	"\x0fidempotency_key\x18d \x01(\tR\x0eidempotencyKey\x12=\n" +
 	"\fscheduled_at\x18e \x01(\v2\x1a.google.protobuf.TimestampR\vscheduledAt\x12\x1d\n" +
 	"\n" +
@@ -2304,7 +2368,9 @@ const file_jobs_v1_jobs_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"?\n" +
 	" NotifyHarborTenantRegisteredArgs\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"\x8a\x01\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"I\n" +
+	"\x1fNotifyHarborReceiptReceivedArgs\x12&\n" +
+	"\x0fresend_email_id\x18\x01 \x01(\tR\rresendEmailId\"\x8a\x01\n" +
 	"\x0eProcessPdfArgs\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12#\n" +
@@ -2397,7 +2463,7 @@ func file_jobs_v1_jobs_proto_rawDescGZIP() []byte {
 }
 
 var file_jobs_v1_jobs_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_jobs_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_jobs_v1_jobs_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_jobs_v1_jobs_proto_goTypes = []any{
 	(JobState)(0),                            // 0: jobs.v1.JobState
 	(*EnqueueRequest)(nil),                   // 1: jobs.v1.EnqueueRequest
@@ -2416,20 +2482,21 @@ var file_jobs_v1_jobs_proto_goTypes = []any{
 	(*TeardownZernioProfileArgs)(nil),        // 14: jobs.v1.TeardownZernioProfileArgs
 	(*SendEmailArgs)(nil),                    // 15: jobs.v1.SendEmailArgs
 	(*NotifyHarborTenantRegisteredArgs)(nil), // 16: jobs.v1.NotifyHarborTenantRegisteredArgs
-	(*ProcessPdfArgs)(nil),                   // 17: jobs.v1.ProcessPdfArgs
-	(*ProcessDocumentArgs)(nil),              // 18: jobs.v1.ProcessDocumentArgs
-	(*ProcessUrlArgs)(nil),                   // 19: jobs.v1.ProcessUrlArgs
-	(*ProcessImageArgs)(nil),                 // 20: jobs.v1.ProcessImageArgs
-	(*ProcessAudioArgs)(nil),                 // 21: jobs.v1.ProcessAudioArgs
-	(*ReembedImageArgs)(nil),                 // 22: jobs.v1.ReembedImageArgs
-	(*AnalyzeAssetArgs)(nil),                 // 23: jobs.v1.AnalyzeAssetArgs
-	(*ReanalyzeCampaignArgs)(nil),            // 24: jobs.v1.ReanalyzeCampaignArgs
-	(*DistillAssetIdeasArgs)(nil),            // 25: jobs.v1.DistillAssetIdeasArgs
-	(*DistillBrandArgs)(nil),                 // 26: jobs.v1.DistillBrandArgs
-	(*BuildWeeklyReportArgs)(nil),            // 27: jobs.v1.BuildWeeklyReportArgs
-	(*BillingApplyScheduledChangeArgs)(nil),  // 28: jobs.v1.BillingApplyScheduledChangeArgs
-	nil,                                      // 29: jobs.v1.SendEmailArgs.VarsEntry
-	(*timestamppb.Timestamp)(nil),            // 30: google.protobuf.Timestamp
+	(*NotifyHarborReceiptReceivedArgs)(nil),  // 17: jobs.v1.NotifyHarborReceiptReceivedArgs
+	(*ProcessPdfArgs)(nil),                   // 18: jobs.v1.ProcessPdfArgs
+	(*ProcessDocumentArgs)(nil),              // 19: jobs.v1.ProcessDocumentArgs
+	(*ProcessUrlArgs)(nil),                   // 20: jobs.v1.ProcessUrlArgs
+	(*ProcessImageArgs)(nil),                 // 21: jobs.v1.ProcessImageArgs
+	(*ProcessAudioArgs)(nil),                 // 22: jobs.v1.ProcessAudioArgs
+	(*ReembedImageArgs)(nil),                 // 23: jobs.v1.ReembedImageArgs
+	(*AnalyzeAssetArgs)(nil),                 // 24: jobs.v1.AnalyzeAssetArgs
+	(*ReanalyzeCampaignArgs)(nil),            // 25: jobs.v1.ReanalyzeCampaignArgs
+	(*DistillAssetIdeasArgs)(nil),            // 26: jobs.v1.DistillAssetIdeasArgs
+	(*DistillBrandArgs)(nil),                 // 27: jobs.v1.DistillBrandArgs
+	(*BuildWeeklyReportArgs)(nil),            // 28: jobs.v1.BuildWeeklyReportArgs
+	(*BillingApplyScheduledChangeArgs)(nil),  // 29: jobs.v1.BillingApplyScheduledChangeArgs
+	nil,                                      // 30: jobs.v1.SendEmailArgs.VarsEntry
+	(*timestamppb.Timestamp)(nil),            // 31: google.protobuf.Timestamp
 }
 var file_jobs_v1_jobs_proto_depIdxs = []int32{
 	8,  // 0: jobs.v1.EnqueueRequest.submit_post_to_zernio:type_name -> jobs.v1.SubmitPostToZernioArgs
@@ -2441,37 +2508,38 @@ var file_jobs_v1_jobs_proto_depIdxs = []int32{
 	14, // 6: jobs.v1.EnqueueRequest.teardown_zernio_profile:type_name -> jobs.v1.TeardownZernioProfileArgs
 	15, // 7: jobs.v1.EnqueueRequest.send_email:type_name -> jobs.v1.SendEmailArgs
 	16, // 8: jobs.v1.EnqueueRequest.notify_harbor_tenant_registered:type_name -> jobs.v1.NotifyHarborTenantRegisteredArgs
-	17, // 9: jobs.v1.EnqueueRequest.process_pdf:type_name -> jobs.v1.ProcessPdfArgs
-	18, // 10: jobs.v1.EnqueueRequest.process_document:type_name -> jobs.v1.ProcessDocumentArgs
-	19, // 11: jobs.v1.EnqueueRequest.process_url:type_name -> jobs.v1.ProcessUrlArgs
-	20, // 12: jobs.v1.EnqueueRequest.process_image:type_name -> jobs.v1.ProcessImageArgs
-	21, // 13: jobs.v1.EnqueueRequest.process_audio:type_name -> jobs.v1.ProcessAudioArgs
-	22, // 14: jobs.v1.EnqueueRequest.reembed_image:type_name -> jobs.v1.ReembedImageArgs
-	23, // 15: jobs.v1.EnqueueRequest.analyze_asset:type_name -> jobs.v1.AnalyzeAssetArgs
-	24, // 16: jobs.v1.EnqueueRequest.reanalyze_campaign:type_name -> jobs.v1.ReanalyzeCampaignArgs
-	28, // 17: jobs.v1.EnqueueRequest.billing_apply_scheduled_change:type_name -> jobs.v1.BillingApplyScheduledChangeArgs
-	26, // 18: jobs.v1.EnqueueRequest.distill_brand:type_name -> jobs.v1.DistillBrandArgs
-	25, // 19: jobs.v1.EnqueueRequest.distill_asset_ideas:type_name -> jobs.v1.DistillAssetIdeasArgs
-	27, // 20: jobs.v1.EnqueueRequest.build_weekly_report:type_name -> jobs.v1.BuildWeeklyReportArgs
-	30, // 21: jobs.v1.EnqueueRequest.scheduled_at:type_name -> google.protobuf.Timestamp
-	7,  // 22: jobs.v1.GetJobResponse.job:type_name -> jobs.v1.Job
-	7,  // 23: jobs.v1.CancelJobResponse.job:type_name -> jobs.v1.Job
-	0,  // 24: jobs.v1.Job.state:type_name -> jobs.v1.JobState
-	30, // 25: jobs.v1.Job.created_at:type_name -> google.protobuf.Timestamp
-	30, // 26: jobs.v1.Job.scheduled_at:type_name -> google.protobuf.Timestamp
-	30, // 27: jobs.v1.Job.finalized_at:type_name -> google.protobuf.Timestamp
-	29, // 28: jobs.v1.SendEmailArgs.vars:type_name -> jobs.v1.SendEmailArgs.VarsEntry
-	1,  // 29: jobs.v1.JobService.Enqueue:input_type -> jobs.v1.EnqueueRequest
-	3,  // 30: jobs.v1.JobService.GetJob:input_type -> jobs.v1.GetJobRequest
-	5,  // 31: jobs.v1.JobService.CancelJob:input_type -> jobs.v1.CancelJobRequest
-	2,  // 32: jobs.v1.JobService.Enqueue:output_type -> jobs.v1.EnqueueResponse
-	4,  // 33: jobs.v1.JobService.GetJob:output_type -> jobs.v1.GetJobResponse
-	6,  // 34: jobs.v1.JobService.CancelJob:output_type -> jobs.v1.CancelJobResponse
-	32, // [32:35] is the sub-list for method output_type
-	29, // [29:32] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	18, // 9: jobs.v1.EnqueueRequest.process_pdf:type_name -> jobs.v1.ProcessPdfArgs
+	19, // 10: jobs.v1.EnqueueRequest.process_document:type_name -> jobs.v1.ProcessDocumentArgs
+	20, // 11: jobs.v1.EnqueueRequest.process_url:type_name -> jobs.v1.ProcessUrlArgs
+	21, // 12: jobs.v1.EnqueueRequest.process_image:type_name -> jobs.v1.ProcessImageArgs
+	22, // 13: jobs.v1.EnqueueRequest.process_audio:type_name -> jobs.v1.ProcessAudioArgs
+	23, // 14: jobs.v1.EnqueueRequest.reembed_image:type_name -> jobs.v1.ReembedImageArgs
+	24, // 15: jobs.v1.EnqueueRequest.analyze_asset:type_name -> jobs.v1.AnalyzeAssetArgs
+	25, // 16: jobs.v1.EnqueueRequest.reanalyze_campaign:type_name -> jobs.v1.ReanalyzeCampaignArgs
+	29, // 17: jobs.v1.EnqueueRequest.billing_apply_scheduled_change:type_name -> jobs.v1.BillingApplyScheduledChangeArgs
+	27, // 18: jobs.v1.EnqueueRequest.distill_brand:type_name -> jobs.v1.DistillBrandArgs
+	26, // 19: jobs.v1.EnqueueRequest.distill_asset_ideas:type_name -> jobs.v1.DistillAssetIdeasArgs
+	28, // 20: jobs.v1.EnqueueRequest.build_weekly_report:type_name -> jobs.v1.BuildWeeklyReportArgs
+	17, // 21: jobs.v1.EnqueueRequest.notify_harbor_receipt_received:type_name -> jobs.v1.NotifyHarborReceiptReceivedArgs
+	31, // 22: jobs.v1.EnqueueRequest.scheduled_at:type_name -> google.protobuf.Timestamp
+	7,  // 23: jobs.v1.GetJobResponse.job:type_name -> jobs.v1.Job
+	7,  // 24: jobs.v1.CancelJobResponse.job:type_name -> jobs.v1.Job
+	0,  // 25: jobs.v1.Job.state:type_name -> jobs.v1.JobState
+	31, // 26: jobs.v1.Job.created_at:type_name -> google.protobuf.Timestamp
+	31, // 27: jobs.v1.Job.scheduled_at:type_name -> google.protobuf.Timestamp
+	31, // 28: jobs.v1.Job.finalized_at:type_name -> google.protobuf.Timestamp
+	30, // 29: jobs.v1.SendEmailArgs.vars:type_name -> jobs.v1.SendEmailArgs.VarsEntry
+	1,  // 30: jobs.v1.JobService.Enqueue:input_type -> jobs.v1.EnqueueRequest
+	3,  // 31: jobs.v1.JobService.GetJob:input_type -> jobs.v1.GetJobRequest
+	5,  // 32: jobs.v1.JobService.CancelJob:input_type -> jobs.v1.CancelJobRequest
+	2,  // 33: jobs.v1.JobService.Enqueue:output_type -> jobs.v1.EnqueueResponse
+	4,  // 34: jobs.v1.JobService.GetJob:output_type -> jobs.v1.GetJobResponse
+	6,  // 35: jobs.v1.JobService.CancelJob:output_type -> jobs.v1.CancelJobResponse
+	33, // [33:36] is the sub-list for method output_type
+	30, // [30:33] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_jobs_v1_jobs_proto_init() }
@@ -2501,15 +2569,16 @@ func file_jobs_v1_jobs_proto_init() {
 		(*EnqueueRequest_DistillBrand)(nil),
 		(*EnqueueRequest_DistillAssetIdeas)(nil),
 		(*EnqueueRequest_BuildWeeklyReport)(nil),
+		(*EnqueueRequest_NotifyHarborReceiptReceived)(nil),
 	}
-	file_jobs_v1_jobs_proto_msgTypes[22].OneofWrappers = []any{}
+	file_jobs_v1_jobs_proto_msgTypes[23].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_jobs_v1_jobs_proto_rawDesc), len(file_jobs_v1_jobs_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   29,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
