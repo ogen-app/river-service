@@ -60,21 +60,25 @@ func TestCatchUpKindsCarryTheirFields(t *testing.T) {
 }
 
 func TestCatchUpSweepsAndChildren(t *testing.T) {
-	cfg := &config.Config{BillingReconcileInterval: time.Hour}
+	cfg := &config.Config{BillingReconcileInterval: time.Hour, BillingPaymentsSyncInterval: 24 * time.Hour}
 	d := stepDeps{ogen: &scriptedSteps{}, actions: &recordingActions{}, children: newChildKinds()}
 	reg := queue.NewRegistry()
 	registerWeeklyReport(reg, cfg, d)
 	registerBilling(reg, cfg, d, &fakeMaintenance{})
 	registerBrandDistill(reg, d, &fakeMaintenance{})
 	// WEEKLY_REPORT_CHECK_EVERY is zero here, so only the billing reconcile,
-	// the webhook prune and the brand expiry are scheduled.
-	if reg.Len() != 9 || len(reg.PeriodicJobs()) != 3 {
-		t.Errorf("kinds %d, periodic %d; want 9 and 3", reg.Len(), len(reg.PeriodicJobs()))
+	// the payments sync, the webhook prune and the brand expiry are scheduled.
+	if reg.Len() != 9 || len(reg.PeriodicJobs()) != 4 {
+		t.Errorf("kinds %d, periodic %d; want 9 and 4", reg.Len(), len(reg.PeriodicJobs()))
+	}
+	// ogen registers the payments sync's steps under this kind
+	// (queues.BillingSyncPaymentsKind); any other name gets UNIMPLEMENTED.
+	if kind := (BillingSyncPaymentsArgs{}).Kind(); kind != "billing_sync_payments" {
+		t.Errorf("payments sync kind = %q, want billing_sync_payments", kind)
 	}
 	for kind, args := range map[string]string{
 		"build_weekly_report":         `{"tenant_id":"t1","week_start":"2026-10-26"}`,
 		"billing_resync_subscription": `{"provider_subscription_id":"42"}`,
-		"billing_backfill_payments":   `{}`,
 	} {
 		if _, err := d.children.args(kind, []byte(args)); err != nil {
 			t.Errorf("child %s: %v", kind, err)

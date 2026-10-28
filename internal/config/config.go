@@ -106,6 +106,10 @@ type Config struct {
 	// BillingReconcileInterval re-reads every live subscription from Lemon
 	// Squeezy; ogen skips the pass while billing is off. Zero turns it off.
 	BillingReconcileInterval time.Duration `envconfig:"BILLING_RECONCILE_INTERVAL" default:"1h"`
+	// BillingPaymentsSyncInterval re-reads the whole Lemon Squeezy payment
+	// history into ogen's billing_payments (behind Harbor's ListPayments). It
+	// also runs once at start, which is the first backfill. Zero turns it off.
+	BillingPaymentsSyncInterval time.Duration `envconfig:"BILLING_PAYMENTS_SYNC_INTERVAL" default:"24h"`
 	// WeeklyReportCheckEvery is how often the weekly report looks for
 	// workspaces whose Monday 09:00 has come; ogen's WEEKLY_REPORT_ENABLED
 	// decides whether anything is sent. Zero turns it off.
