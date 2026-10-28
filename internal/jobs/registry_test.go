@@ -68,12 +68,13 @@ func TestCatchUpSweepsAndChildren(t *testing.T) {
 	registerBrandDistill(reg, d, &fakeMaintenance{})
 	// WEEKLY_REPORT_CHECK_EVERY is zero here, so only the billing reconcile,
 	// the webhook prune and the brand expiry are scheduled.
-	if reg.Len() != 8 || len(reg.PeriodicJobs()) != 3 {
-		t.Errorf("kinds %d, periodic %d; want 8 and 3", reg.Len(), len(reg.PeriodicJobs()))
+	if reg.Len() != 9 || len(reg.PeriodicJobs()) != 3 {
+		t.Errorf("kinds %d, periodic %d; want 9 and 3", reg.Len(), len(reg.PeriodicJobs()))
 	}
 	for kind, args := range map[string]string{
 		"build_weekly_report":         `{"tenant_id":"t1","week_start":"2026-10-26"}`,
 		"billing_resync_subscription": `{"provider_subscription_id":"42"}`,
+		"billing_backfill_payments":   `{}`,
 	} {
 		if _, err := d.children.args(kind, []byte(args)); err != nil {
 			t.Errorf("child %s: %v", kind, err)

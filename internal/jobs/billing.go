@@ -47,6 +47,25 @@ func (BillingResyncSubscriptionArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{MaxAttempts: 3}
 }
 
+// BillingBackfillPaymentsArgs pages through the Lemon Squeezy payment history
+// (orders, subscription invoices, refunds) of the billing mode ogen runs in.
+// The reconcile fans it out while ogen's backfill hasn't reached the end. Each
+// step is one page: ogen plans the call, decodes it, stores the payments and
+// the cursor, so an attempt cut short resumes on the next page.
+type BillingBackfillPaymentsArgs struct{}
+
+func (BillingBackfillPaymentsArgs) Kind() string { return "billing_backfill_payments" }
+
+// InsertOpts fold a second fan-out into the backfill already waiting or
+// running; the next reconcile picks up where a failed one stopped.
+func (BillingBackfillPaymentsArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{MaxAttempts: 3, UniqueOpts: river.UniqueOpts{ByArgs: true, ByState: waitingStates}}
+}
+
+// billingBackfillTimeout bounds one backfill attempt: many pages, each a
+// short Lemon Squeezy call, well under RESCUE_STUCK_JOBS_AFTER.
+const billingBackfillTimeout = 10 * time.Minute
+
 // BillingWebhookEventsSweepArgs prunes the webhook log. It only touches
 // ogen's tables, so it runs in ogen (MaintenanceService.Run).
 type BillingWebhookEventsSweepArgs struct{}
@@ -64,5 +83,7 @@ func registerBilling(reg *queue.Registry, cfg *config.Config, d stepDeps, mainte
 	queue.RegisterPeriodic(reg, newStepWorker[BillingReconcileArgs](d, 0), cfg.BillingReconcileInterval, BillingReconcileArgs{})
 	queue.RegisterInternal(reg, newStepWorker[BillingResyncSubscriptionArgs](d, 0))
 	d.children.build[BillingResyncSubscriptionArgs{}.Kind()] = childOf[BillingResyncSubscriptionArgs]()
+	queue.RegisterInternal(reg, newStepWorker[BillingBackfillPaymentsArgs](d, billingBackfillTimeout))
+	d.children.build[BillingBackfillPaymentsArgs{}.Kind()] = childOf[BillingBackfillPaymentsArgs]()
 	queue.RegisterPeriodic(reg, &sweepWorker[BillingWebhookEventsSweepArgs]{rpc: maintenance}, billingWebhookSweepEvery, BillingWebhookEventsSweepArgs{})
 }
