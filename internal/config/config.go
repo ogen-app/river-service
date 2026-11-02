@@ -114,6 +114,11 @@ type Config struct {
 	// workspaces whose Monday 09:00 has come; ogen's WEEKLY_REPORT_ENABLED
 	// decides whether anything is sent. Zero turns it off.
 	WeeklyReportCheckEvery time.Duration `envconfig:"WEEKLY_REPORT_CHECK_EVERY" default:"1h"`
+	// QualitySweepEvery is how often ogen runs the automatic post quality
+	// assessments that are due; ogen's QUALITY_AUTO_ENABLED decides whether
+	// any are queued, and the checkpoint delays live there too. Zero turns it
+	// off.
+	QualitySweepEvery time.Duration `envconfig:"QUALITY_SWEEP_EVERY" default:"1m"`
 
 	// Gemini's API (embeddings) and Firecrawl's (URL scrapes). Their keys are
 	// leased from ogen.
