@@ -37,6 +37,7 @@ func Registry(cfg *config.Config, ogen *ogenrpc.Client) *queue.Registry {
 	registerIngestion(reg, steps)
 	registerAnalysis(reg, cfg, steps, ogen.Maintenance)
 	registerBrandDistill(reg, steps, ogen.Maintenance)
+	registerPostQuality(reg, cfg, ogen.Maintenance)
 	registerWeeklyReport(reg, cfg, steps)
 	registerBilling(reg, cfg, steps, ogen.Maintenance)
 	return reg
