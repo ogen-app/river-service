@@ -31,14 +31,14 @@ is refused by `Enqueue` with `UNIMPLEMENTED`, and ogen keeps it in its outbox.
 | Brand distillation | `distill_brand`, `expire_brand_distills` (queue `analysis`) | Step-run job. ogen admits the run, the site map (Firecrawl) goes out from here, the job snoozes while the run's sources ingest, then the model stages run detached in ogen and the job waits on them. The expiry sweep runs in ogen. |
 | Post quality | `assess_due_posts` (queue `analysis`) | Sweep that runs in ogen through `MaintenanceService.Run`: ogen claims the posts whose quality-assessment checkpoint (marked ready, version saved, scheduled, published) is due and runs the model calls. ogen keeps the queue, the delays and `QUALITY_AUTO_ENABLED`; this service keeps the cadence. |
 | Weekly report | `weekly_report_dispatch` (fans out into `build_weekly_report`) | The hourly dispatch asks ogen which workspaces' Monday 09:00 has come; each build has ogen collect the week and queue the owners' `send_email` jobs, which come back here through the outbox. ogen's `WEEKLY_REPORT_ENABLED` decides whether anything is built. |
-| Billing | `billing_apply_scheduled_change`, `billing_reconcile` (fans out into `billing_resync_subscription`), `billing_sync_payments`, `billing_webhook_events_sweep` | Lemon Squeezy calls go out from here with the key of the billing mode ogen runs in. A scheduled change pushes the plan switch an hour ahead (and reverts a push that landed after the owner kept the plan); ogen moves the tier at the effective time. The reconcile re-reads one subscription per child job and re-queues due changes; ogen skips it while billing is off. `billing_sync_payments` pages through the whole Lemon Squeezy payment history, one step per page, and ogen upserts each page into `billing_payments` (served to Harbor by `ListPayments`). It runs at start, which is the first backfill, then on its cadence to pick up refunds whose webhook was lost. A retry starts over from the first page; every page is an upsert. The webhook-log prune runs in ogen. |
+| Billing | `billing_apply_scheduled_change`, `billing_reconcile` (fans out into `billing_resync_subscription`), `billing_sync_payments`, `billing_webhook_events_sweep` | Polar calls go out from here with the token of the billing mode ogen runs in, to the sandbox or production API as ogen names it (`polar_sandbox` / `polar`). Polar holds a downgrade for the renewal itself, so `billing_apply_scheduled_change` is no longer queued; jobs still waiting finish as no-ops. The reconcile re-reads one subscription per child job; ogen skips it while billing is off. `billing_sync_payments` first fetches the ECB's reference rates (ogen converts non-USD payments to USD with them), then pages through the whole Polar payment history, orders then refunds, one step per page, and ogen upserts each page into `billing_payments` (served to Harbor by `ListPayments`). It runs at start, which is the first backfill, then on its cadence to pick up refunds whose webhook was lost. A retry starts over from the first page; every page is an upsert. The webhook-log prune runs in ogen. |
 
 ### How a step-run job runs
 
 Jobs that call outside services run on one generic worker (`internal/jobs/steps.go`):
 1. It asks ogen for the next step (`JobStepService.Step`).
 2. ogen answers with one of six things:
-   - an HTTP call, either to a named API (`zernio`, `gemini`, `firecrawl`, `lemonsqueezy`, sent with that API's leased key; a redirect comes back as the result rather than being followed, so the key never goes elsewhere) or to an absolute URL fetched with no credentials through the SSRF guard
+   - an HTTP call, either to a named API (`zernio`, `gemini`, `firecrawl`, `polar`, `polar_sandbox`, and `lemonsqueezy` for ogen releases before Polar, sent with that API's leased key; a redirect comes back as the result rather than being followed, so the key never goes elsewhere) or to an absolute URL fetched with no credentials through the SSRF guard
    - a sidecar gRPC call, unary or client-streamed from a stored file
    - a media transfer from storage to an upload URL
    - a wait: up to 30 s the worker sleeps and steps again with the same state; a longer one is a snooze
@@ -96,14 +96,15 @@ job ogen enqueues reaches this service through ogen's outbox.
 | `ZERNIO_BASE_URL` / `ZERNIO_HTTP_TIMEOUT` | `https://zernio.com/api/v1` / `15s` | Zernio's API and per-call timeout. The key is leased from ogen; with none set, ogen ends Zernio jobs without doing anything. |
 | `GEMINI_BASE_URL` / `GEMINI_HTTP_TIMEOUT` | `https://generativelanguage.googleapis.com` / `60s` | Gemini's API (embeddings) and per-call timeout. Key leased from ogen. |
 | `FIRECRAWL_BASE_URL` / `FIRECRAWL_HTTP_TIMEOUT` | `https://api.firecrawl.dev` / `90s` | Firecrawl's API (URL scrapes, site maps) and per-call timeout. Key leased from ogen. |
-| `LEMONSQUEEZY_BASE_URL` / `LEMONSQUEEZY_HTTP_TIMEOUT` | `https://api.lemonsqueezy.com/v1` / `15s` | Lemon Squeezy's API and per-call timeout, for the billing jobs. The key of the billing mode ogen runs in is leased from ogen. Point it where ogen's `LEMONSQUEEZY_BASE_URL` points. |
+| `POLAR_BASE_URL` / `POLAR_SANDBOX_BASE_URL` / `POLAR_HTTP_TIMEOUT` | `https://api.polar.sh/v1` / `https://sandbox-api.polar.sh/v1` / `15s` | Polar's production and sandbox APIs and the per-call timeout, for the billing jobs. ogen sends each call to the API of the billing mode it runs in; the token is leased from ogen. |
+| `LEMONSQUEEZY_BASE_URL` / `LEMONSQUEEZY_HTTP_TIMEOUT` | `https://api.lemonsqueezy.com/v1` / `15s` | Lemon Squeezy's API, used only while ogen still runs a release older than the Polar one. |
 | `FETCH_TIMEOUT` | `30s` | Fetch of outside content (an image on a scraped page). These fetches never reach private, shared (100.64.0.0/10), loopback or link-local addresses. |
 | `PDF_SERVICE_ADDR` / `DOCUMENTS_SERVICE_ADDR` / `IMAGE_SERVICE_ADDR` / `AUDIO_SERVICE_ADDR` | empty | Sidecar gRPC addresses, set on the heavy service. A sidecar left unset behaves as it does in ogen without it. |
 | `SIDECAR_MAX_RECV_BYTES` | `134217728` (128 MiB) | Largest sidecar response accepted |
 | `ZERNIO_HEALTH_CHECK_INTERVAL` | `6h` | Connection-health sweep cadence; `0` turns it off. |
 | `ANALYSIS_BACKFILL_INTERVAL` | `15m` | Asset-analysis backfill cadence; `0` turns it off. The batch size (`ANALYSIS_BACKFILL_BATCH`) stays in ogen. |
 | `BILLING_RECONCILE_INTERVAL` | `1h` | Billing reconcile cadence; `0` turns it off. The webhook-log prune runs daily and the brand-proposal expiry every 6 hours. |
-| `BILLING_PAYMENTS_SYNC_INTERVAL` | `24h` | Cadence of the Lemon Squeezy payment-history sync (`billing_sync_payments`); it also runs once at start, which is the first backfill. `0` turns it off. |
+| `BILLING_PAYMENTS_SYNC_INTERVAL` | `24h` | Cadence of the payment-history sync (`billing_sync_payments`), exchange rates first; it also runs once at start, which is the first backfill. `0` turns it off. |
 | `QUALITY_SWEEP_EVERY` | `1m` | Cadence of the automatic post quality sweep (`assess_due_posts`); `0` turns it off. `QUALITY_AUTO_ENABLED` and the checkpoint delays stay in ogen. |
 | `WEEKLY_REPORT_CHECK_EVERY` | `1h` | How often the weekly report looks for workspaces due; `0` turns it off. `WEEKLY_REPORT_ENABLED` and `WEEKLY_REPORT_LIMIT_PCT` stay in ogen. |
 | `RECONCILE_EVERY` / `MANUAL_PUBLISH_DUE_SWEEP_EVERY` | `5m` / `1h` | Cadence of the two publishing sweeps that run in ogen; `0` turns one off. |
@@ -151,7 +152,7 @@ whichever replica leads schedules every sweep.
 `river-service-heavy` only: `PDF_SERVICE_ADDR`, `DOCUMENTS_SERVICE_ADDR`,
 `IMAGE_SERVICE_ADDR`, `AUDIO_SERVICE_ADDR` (the sidecars' private
 addresses), `GEMINI_*` and `FIRECRAWL_*` overrides if any. The billing jobs
-and the brand site map run on `river-service`, so `LEMONSQUEEZY_*` and
+and the brand site map run on `river-service`, so `POLAR_*` and
 `FIRECRAWL_*` overrides go there too. Worker counts:
 start with the defaults (4 default, 4 analysis, 2 each heavy queue) and one
 replica of each; every analysis job holds a worker while ogen runs its model
