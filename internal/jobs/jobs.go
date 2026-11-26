@@ -67,9 +67,11 @@ func newActions(cfg *config.Config, keys actions.Keys) *actions.Executor {
 	return actions.New(actions.Options{
 		Keys: keys,
 		Upstreams: map[string]actions.Upstream{
-			upstreamZernio:    {BaseURL: cfg.ZernioBaseURL, Credential: credentials.Zernio, Header: "Authorization", Prefix: "Bearer ", Timeout: cfg.ZernioHTTPTimeout},
-			upstreamGemini:    {BaseURL: cfg.GeminiBaseURL, Credential: credentials.Gemini, Header: "x-goog-api-key", Timeout: cfg.GeminiHTTPTimeout},
-			upstreamFirecrawl: {BaseURL: cfg.FirecrawlBaseURL, Credential: credentials.Firecrawl, Header: "Authorization", Prefix: "Bearer ", Timeout: cfg.FirecrawlHTTPTimeout},
+			upstreamZernio:       {BaseURL: cfg.ZernioBaseURL, Credential: credentials.Zernio, Header: "Authorization", Prefix: "Bearer ", Timeout: cfg.ZernioHTTPTimeout},
+			upstreamGemini:       {BaseURL: cfg.GeminiBaseURL, Credential: credentials.Gemini, Header: "x-goog-api-key", Timeout: cfg.GeminiHTTPTimeout},
+			upstreamFirecrawl:    {BaseURL: cfg.FirecrawlBaseURL, Credential: credentials.Firecrawl, Header: "Authorization", Prefix: "Bearer ", Timeout: cfg.FirecrawlHTTPTimeout},
+			upstreamPolar:        {BaseURL: cfg.PolarBaseURL, Credential: credentials.Polar, Header: "Authorization", Prefix: "Bearer ", Timeout: cfg.PolarHTTPTimeout},
+			upstreamPolarSandbox: {BaseURL: cfg.PolarSandboxBaseURL, Credential: credentials.Polar, Header: "Authorization", Prefix: "Bearer ", Timeout: cfg.PolarHTTPTimeout},
 			upstreamLemonSqueezy: {
 				BaseURL: cfg.LemonSqueezyBaseURL, Credential: credentials.LemonSqueezy, Header: "Authorization", Prefix: "Bearer ", Timeout: cfg.LemonSqueezyHTTPTimeout,
 			},
@@ -81,8 +83,12 @@ func newActions(cfg *config.Config, keys actions.Keys) *actions.Executor {
 
 // The named APIs ogen's planned calls go to.
 const (
-	upstreamZernio       = "zernio"
-	upstreamGemini       = "gemini"
-	upstreamFirecrawl    = "firecrawl"
+	upstreamZernio    = "zernio"
+	upstreamGemini    = "gemini"
+	upstreamFirecrawl = "firecrawl"
+	// Polar production and sandbox; ogen picks the one of its billing mode.
+	upstreamPolar        = "polar"
+	upstreamPolarSandbox = "polar_sandbox"
+	// upstreamLemonSqueezy serves ogen releases older than the Polar one.
 	upstreamLemonSqueezy = "lemonsqueezy"
 )

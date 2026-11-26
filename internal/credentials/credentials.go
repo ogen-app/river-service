@@ -21,7 +21,11 @@ const (
 	Zernio    = "zernio_api_key"
 	Gemini    = "gemini_api_key"
 	Firecrawl = "firecrawl_api_key"
-	// LemonSqueezy is the key of the billing mode ogen runs in.
+	// Polar is the access token of the billing mode ogen runs in (sandbox or
+	// production); ogen names the matching upstream.
+	Polar = "polar_access_token"
+	// LemonSqueezy is the key of the billing provider before Polar, leased by
+	// ogen releases older than the Polar one.
 	LemonSqueezy = "lemonsqueezy_api_key"
 )
 

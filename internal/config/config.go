@@ -103,12 +103,14 @@ type Config struct {
 	// AnalysisBackfillInterval is the asset-analysis backfill's cadence; the
 	// batch size stays in ogen. Zero turns it off.
 	AnalysisBackfillInterval time.Duration `envconfig:"ANALYSIS_BACKFILL_INTERVAL" default:"15m"`
-	// BillingReconcileInterval re-reads every live subscription from Lemon
-	// Squeezy; ogen skips the pass while billing is off. Zero turns it off.
+	// BillingReconcileInterval re-reads every live subscription from the
+	// billing provider; ogen skips the pass while billing is off. Zero turns it
+	// off.
 	BillingReconcileInterval time.Duration `envconfig:"BILLING_RECONCILE_INTERVAL" default:"1h"`
-	// BillingPaymentsSyncInterval re-reads the whole Lemon Squeezy payment
-	// history into ogen's billing_payments (behind Harbor's ListPayments). It
-	// also runs once at start, which is the first backfill. Zero turns it off.
+	// BillingPaymentsSyncInterval re-reads the whole payment history of the
+	// billing provider into ogen's billing_payments (behind Harbor's
+	// ListPayments), after refreshing ogen's exchange rates. It also runs once
+	// at start, which is the first backfill. Zero turns it off.
 	BillingPaymentsSyncInterval time.Duration `envconfig:"BILLING_PAYMENTS_SYNC_INTERVAL" default:"24h"`
 	// WeeklyReportCheckEvery is how often the weekly report looks for
 	// workspaces whose Monday 09:00 has come; ogen's WEEKLY_REPORT_ENABLED
@@ -126,7 +128,12 @@ type Config struct {
 	GeminiHTTPTimeout    time.Duration `envconfig:"GEMINI_HTTP_TIMEOUT" default:"60s"`
 	FirecrawlBaseURL     string        `envconfig:"FIRECRAWL_BASE_URL" default:"https://api.firecrawl.dev"`
 	FirecrawlHTTPTimeout time.Duration `envconfig:"FIRECRAWL_HTTP_TIMEOUT" default:"90s"`
-	// Lemon Squeezy's API, for the billing jobs. The key is leased from ogen.
+	// Polar's two APIs, for the billing jobs: ogen sends each call to the one
+	// of the mode it runs in. The token is leased from ogen.
+	PolarBaseURL        string        `envconfig:"POLAR_BASE_URL"         default:"https://api.polar.sh/v1"`
+	PolarSandboxBaseURL string        `envconfig:"POLAR_SANDBOX_BASE_URL" default:"https://sandbox-api.polar.sh/v1"`
+	PolarHTTPTimeout    time.Duration `envconfig:"POLAR_HTTP_TIMEOUT"     default:"15s"`
+	// Lemon Squeezy's API, for ogen releases older than the Polar one.
 	LemonSqueezyBaseURL     string        `envconfig:"LEMONSQUEEZY_BASE_URL" default:"https://api.lemonsqueezy.com/v1"`
 	LemonSqueezyHTTPTimeout time.Duration `envconfig:"LEMONSQUEEZY_HTTP_TIMEOUT" default:"15s"`
 	// FetchTimeout bounds a fetch of outside content (an image on a scraped

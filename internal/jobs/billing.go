@@ -12,9 +12,9 @@ import (
 
 // --- billing ---------------------------------------------------------------
 
-// BillingApplyScheduledChangeArgs advances one scheduled plan change: an hour
-// before it takes effect the Lemon Squeezy switch, at the effective time the
-// tier move. ogen picks the due step from the change's status.
+// BillingApplyScheduledChangeArgs advanced a Lemon Squeezy plan change in two
+// timed steps. Polar holds a downgrade itself, so ogen no longer queues it and
+// answers any job still queued as done.
 type BillingApplyScheduledChangeArgs struct {
 	ChangeID string `json:"change_id"`
 }
@@ -27,7 +27,7 @@ func (BillingApplyScheduledChangeArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{MaxAttempts: 5}
 }
 
-// BillingReconcileArgs is the periodic re-sync behind the Lemon Squeezy
+// BillingReconcileArgs is the periodic re-sync behind the billing provider's
 // webhooks. ogen does the part in its own tables and answers with one
 // billing_resync_subscription child per subscription to re-read.
 type BillingReconcileArgs struct{}
@@ -47,10 +47,10 @@ func (BillingResyncSubscriptionArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{MaxAttempts: 3}
 }
 
-// BillingSyncPaymentsArgs pages through the whole Lemon Squeezy payment
-// history (orders, then subscription invoices, refunds included) of the
-// billing mode ogen runs in. Each step is one page: ogen plans the call,
-// decodes it and upserts the payments. The first run backfills what predates
+// BillingSyncPaymentsArgs fetches the ECB exchange rates, then pages through
+// the whole payment history of the billing provider (Polar: orders, then
+// refunds) in the billing mode ogen runs in. Each step is one call: ogen plans
+// it, decodes it and upserts the rates or the payments. The first run backfills what predates
 // the webhooks; later runs pick up refunds whose webhook was lost. A retry
 // starts over from the first page, which is safe because every page is an
 // upsert. ogen skips the pass while billing is off.
@@ -65,7 +65,7 @@ func (BillingSyncPaymentsArgs) InsertOpts() river.InsertOpts {
 }
 
 // billingSyncPaymentsTimeout bounds one sync attempt: many pages, each a
-// short Lemon Squeezy call, well under RESCUE_STUCK_JOBS_AFTER.
+// short provider call, well under RESCUE_STUCK_JOBS_AFTER.
 const billingSyncPaymentsTimeout = 10 * time.Minute
 
 // BillingWebhookEventsSweepArgs prunes the webhook log. It only touches
